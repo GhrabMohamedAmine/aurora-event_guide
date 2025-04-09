@@ -14,7 +14,7 @@ Nous développons une application web innovante qui permet aux organisateurs de 
 
 1. Clonez le repository :
    ```bash
-   git clone https://github.com/utilisateur/projet.git
+   git clone https://github.com/GhrabMohamedAmine/aurora-event_guide.git
    cd projet
 
 2. Si vous utilisez WAMP ou XAMPP :
@@ -23,11 +23,16 @@ Nous développons une application web innovante qui permet aux organisateurs de 
 
 * Démarrez Apache et MySQL depuis l'interface de WAMP/XAMPP.
 
-* Accédez au projet via http://localhost/projet.
+* Accédez au projet via [http://localhost/aurora event_.](https://github.com/GhrabMohamedAmine/aurora-event_guide)
 
 
 
 ## Utilisation
+1. mohame amine ghrab
+2. chedli gharieni
+3. emna ben ayed
+4. maram mohamed
+5. med aziz marzougui
 
 ### Installation de PHP
 
@@ -73,7 +78,7 @@ Si vous souhaitez contribuer, suivez les étapes ci-dessous pour faire un **fork
    
 2. **Clonez votre fork** : Clonez le fork sur votre machine locale :
    ```bash
-   git clone https://github.com/votre-utilisateur/projet.git
+   git clone https://github.com/GhrabMohamedAmine/aurora-event_guide.git
    cd projet
 
 ## Licence
@@ -83,14 +88,8 @@ Si vous souhaitez contribuer, suivez les étapes ci-dessous pour faire un **fork
 ```markdown
 ## Licence
 
-Ce projet est sous la licence **XXX**. Pour plus de détails, consultez le fichier [LICENSE](./LICENSE).
+Ce projet est sous la licence **0.1**. Pour plus de détails, consultez le fichier [LICENSE](./LICENSE).
 
 ### Détails sur la licence MIT
 
-La licence XXX est une licence de logiciel ...
-
-
-
-
-
-
+La licence 0.1 est une licence de logiciel git
