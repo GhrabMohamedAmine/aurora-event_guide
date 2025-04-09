@@ -10,7 +10,7 @@ Nous développons une application web innovante qui permet aux organisateurs de 
 - [Contributions](#contributions)
 - [Licence](#licence)
 
-## Installation
+## Installatio
 
 1. Clonez le repository :
    ```bash
