@@ -1,0 +1,1 @@
+[29-Mar-2025 16:00:01 Europe/Berlin] Erreur getAll: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id' in 'field list'
