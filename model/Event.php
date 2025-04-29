@@ -2,7 +2,7 @@
 require_once __DIR__.'/../config.php';
 
 class Event {
-    private $id;
+    private $id_event;
     private $titre;
     private $artiste;
     private $date;
@@ -10,13 +10,14 @@ class Event {
     private $lieu;
     private $description;
     private $image;
+    private $prix;
     private $db;
 
     public function __construct($data = []) {
         $this->db = $this->getDBConnection();
         
         if (!empty($data)) {
-            $this->id = $data['id'] ?? null;
+            $this->id_event = $data['id_event'] ?? null;
             $this->titre = $data['titre'] ?? '';
             $this->artiste = $data['artiste'] ?? '';
             $this->date = $data['date'] ?? '';
@@ -24,6 +25,7 @@ class Event {
             $this->lieu = $data['lieu'] ?? '';
             $this->description = $data['description'] ?? '';
             $this->image = $data['image'] ?? null;
+            $this->prix = $data['prix'] ?? null;
         }
     }
 
@@ -32,8 +34,8 @@ class Event {
     }
 
     // Getters et Setters
-    public function getId() { return $this->id; }
-    public function setId($id) { $this->id = $id; return $this; }
+    public function getIdEvent() { return $this->id_event; }
+    public function setIdEvent($id_event) { $this->id_event = $id_event; return $this; }
     public function getTitre() { return $this->titre; }
     public function setTitre($titre) { $this->titre = $titre; return $this; }
     public function getArtiste() { return $this->artiste; }
@@ -48,11 +50,13 @@ class Event {
     public function setDescription($description) { $this->description = $description; return $this; }
     public function getImage() { return $this->image; }
     public function setImage($image) { $this->image = $image; return $this; }
+    public function getPrix() { return $this->prix; }
+    public function setPrix($prix) { $this->prix = $prix; return $this; }
 
     public static function getAll() {
         try {
             $db = getDB();
-            $stmt = $db->query("SELECT * FROM evenement");
+            $stmt = $db->query("SELECT * FROM evenement ORDER BY date DESC");
             $events = [];
     
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -69,11 +73,11 @@ class Event {
         }
     }
     
-    public static function getById($id) {
+    public static function getById($id_event) {
         try {
             $db = getDB();
-            $stmt = $db->prepare("SELECT * FROM evenement WHERE id = :id LIMIT 1");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt = $db->prepare("SELECT * FROM evenement WHERE id_event = :id_event LIMIT 1");
+            $stmt->bindParam(':id_event', $id_event, PDO::PARAM_INT);
             $stmt->execute();
             $eventData = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -90,8 +94,8 @@ class Event {
     public function create() {
         try {
             $stmt = $this->db->prepare("INSERT INTO evenement 
-                                      (titre, artiste, date, heure, lieu, description, image) 
-                                      VALUES (:titre, :artiste, :date, :heure, :lieu, :description, :image)");
+                                      (titre, artiste, date, heure, lieu, description, image, prix) 
+                                      VALUES (:titre, :artiste, :date, :heure, :lieu, :description, :image, :prix)");
             $success = $stmt->execute([
                 ':titre' => $this->titre,
                 ':artiste' => $this->artiste,
@@ -99,11 +103,12 @@ class Event {
                 ':heure' => $this->heure,
                 ':lieu' => $this->lieu,
                 ':description' => $this->description,
-                ':image' => $this->image
+                ':image' => $this->image,
+                ':prix' => $this->prix
             ]);
             
             if ($success) {
-                $this->id = $this->db->lastInsertId();
+                $this->id_event = $this->db->lastInsertId();
                 return true;
             }
             return false;
@@ -125,18 +130,20 @@ class Event {
                 heure = :heure, 
                 lieu = :lieu,
                 description = :description,
-                image = :image 
-                WHERE id = :id");
+                image = :image,
+                prix = :prix 
+                WHERE id_event = :id_event");
             
             return $stmt->execute([
-                ':id' => $this->id,
+                ':id_event' => $this->id_event,
                 ':titre' => $this->titre,
                 ':artiste' => $this->artiste,
                 ':date' => $this->date,
                 ':heure' => $this->heure,
                 ':lieu' => $this->lieu,
                 ':description' => $this->description,
-                ':image' => $this->image
+                ':image' => $this->image,
+                ':prix' => $this->prix
             ]);
         } catch (PDOException $e) {
             if (APP_DEBUG) {
@@ -153,8 +160,8 @@ class Event {
                 $this->deleteImageFile();
             }
             
-            $stmt = $this->db->prepare("DELETE FROM evenement WHERE id = :id");
-            return $stmt->execute([':id' => $this->id]);
+            $stmt = $this->db->prepare("DELETE FROM evenement WHERE id_event = :id_event");
+            return $stmt->execute([':id_event' => $this->id_event]);
         } catch (PDOException $e) {
             if (APP_DEBUG) {
                 die("Erreur SQL dans delete(): " . $e->getMessage());

@@ -1,161 +1,137 @@
 <?php
-require_once __DIR__.'/../reserve.php';
+require_once __DIR__ . '/../config.php';
+include_once __DIR__ . '/../model/reserve.php';
 
-class ReservationController {
-    private $model;
-
-    public function __construct() {
-        $this->model = new Reservation();
-    }
-
-    public function handleRequest() {
-        $action = $_POST['action'] ?? $_GET['action'] ?? 'list';
-
+class ReservationC {
+    // Ajouter une réservation
+    public function ajouterReservation(Reservation $reservation) {
+        $sql = "INSERT INTO reservation (id_event, id_user, nombre_places, categorie, mode_paiement)
+                VALUES (:id_event, :id_user, :nombre_places, :categorie, :mode_paiement)";
+        $db = getDB();
         try {
-            switch ($action) {
-                case 'add':
-                    $this->addReservation();
-                    break;
-                case 'edit':
-                    $this->editReservation();
-                    break;
-                case 'delete':
-                    $this->deleteReservation();
-                    break;
-                case 'get':
-                    $this->getReservation();
-                    break;
-                case 'list':
-                default:
-                    $this->listReservations();
-                    break;
-            }
+            $query = $db->prepare($sql);
+            $query->execute([
+                'id_event'       => $reservation->getIdEvent(),
+                'id_user'        => $reservation->getIdUser(),
+                'nombre_places'  => $reservation->getNombrePlaces(),
+                'categorie'      => $reservation->getCategorie(),
+                'mode_paiement'  => $reservation->getModePaiement()
+            ]);
+            return true;
         } catch (Exception $e) {
-            $this->jsonResponse(false, $e->getMessage());
+            return false;
         }
     }
 
-    private function addReservation() {
-        $required = ['id_event', 'nom', 'telephone', 'nombre_places', 'categorie', 'mode_paiement'];
-        $data = $this->sanitizeInput($_POST, $required);
-        
-        $reservation = new Reservation();
-        $reservation->hydrate($data);
-        
-        $success = $reservation->create();
-        $this->jsonResponse($success, $success ? 'Réservation ajoutée avec succès' : 'Erreur lors de l\'ajout');
-    }
-
-    private function editReservation() {
-        $required = ['id_reservation', 'id_event', 'nom', 'telephone', 'nombre_places', 'categorie', 'mode_paiement'];
-        $data = $this->sanitizeInput($_POST, $required);
-        
-        $reservation = new Reservation();
-        $reservation->hydrate($data);
-        
-        $success = $reservation->update();
-        $this->jsonResponse($success, $success ? 'Réservation modifiée avec succès' : 'Erreur lors de la modification');
-    }
-
-    private function deleteReservation() {
-        if (!isset($_POST['id_reservation'])) {
-            $this->jsonResponse(false, 'ID manquant');
-            return;
-        }
-    
-        $id = (int)$_POST['id_reservation'];
-        $reservation = new Reservation();
-        $reservation->setIdReservation($id);
-    
+    // Récupérer toutes les réservations avec les détails de l'utilisateur et le total (tri DESC)
+    public function afficherReservations() {
+        $sql = "SELECT r.*, u.nom, u.prenom, u.telephone, e.prix, e.titre AS event_title, (r.nombre_places * e.prix) AS total
+                FROM reservation r 
+                JOIN user u ON r.id_user = u.id_user
+                JOIN evenement e ON r.id_event = e.id_event
+                ORDER BY r.id_reservation DESC";
+        $db = getDB();
         try {
-            $success = $reservation->delete();
-            $this->jsonResponse($success, $success ? 'Supprimé' : 'Échec');
+            return $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
-            $this->jsonResponse(false, 'Erreur: ' . $e->getMessage());
+            die('Erreur: ' . $e->getMessage());
         }
     }
 
-    private function getReservation() {
-        if (!isset($_GET['id_reservation'])) {
-            throw new Exception('ID manquant');
+    // Récupérer une réservation par id_reservation
+    public function getReservationById($id_reservation) {
+        $sql = "SELECT r.*, u.nom, u.prenom, u.telephone, e.prix, e.titre AS event_title, (r.nombre_places * e.prix) AS total
+                FROM reservation r 
+                JOIN user u ON r.id_user = u.id_user 
+                JOIN evenement e ON r.id_event = e.id_event 
+                WHERE r.id_reservation = :id_reservation";
+        $db = getDB();
+        try {
+            $query = $db->prepare($sql);
+            $query->execute(['id_reservation' => $id_reservation]);
+            return $query->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            $_SESSION['error'] = "Erreur lors de la récupération de la réservation : " . $e->getMessage();
+            return [];
         }
-
-        $id = (int)$_GET['id_reservation'];
-        $reservation = $this->model->getById($id);
-
-        if (!$reservation) {
-            throw new Exception('Réservation non trouvée');
-        }
-
-        $this->jsonResponse(true, '', $reservation);
     }
 
-    private function listReservations() {
-        // Si on veut filtrer par événement
-        if (isset($_GET['id_event'])) {
-            $id_event = (int)$_GET['id_event'];
-            $reservations = $this->model->getByEventId($id_event);
-        } else {
-            $reservations = $this->model->getAll();
+    // Récupérer les réservations par id_user
+    public function getReservationsByUserId($id_user) {
+        $sql = "SELECT r.*, u.nom, u.prenom, u.telephone, e.prix, e.titre AS event_title, (r.nombre_places * e.prix) AS total
+                FROM reservation r 
+                JOIN user u ON r.id_user = u.id_user 
+                JOIN evenement e ON r.id_event = e.id_event 
+                WHERE r.id_user = :id_user
+                ORDER BY r.id_reservation DESC";
+        $db = getDB();
+        try {
+            $query = $db->prepare($sql);
+            $query->execute(['id_user' => $id_user]);
+            return $query->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            $_SESSION['error'] = "Erreur lors de la récupération des réservations : " . $e->getMessage();
+            return [];
         }
-        
-        $this->jsonResponse(true, '', $reservations);
     }
 
-    private function sanitizeInput($input, $requiredFields = []) {
-        $data = [];
-        
-        foreach ($requiredFields as $field) {
-            if (!isset($input[$field])) {
-                throw new Exception("Le champ $field est requis");
-            }
-            
-            $value = is_array($input[$field]) ? $input[$field] : trim($input[$field]);
-            
-            if (empty($value) && $value !== '0') {
-                throw new Exception("Le champ $field ne peut pas être vide");
-            }
-            
-            switch ($field) {
-                case 'id_reservation':
-                case 'id_event':
-                case 'nombre_places':
-                    $data[$field] = (int)$value;
-                    break;
-                case 'telephone':
-                    if (!preg_match('/^[0-9]{10,15}$/', $value)) {
-                        throw new Exception("Format de téléphone invalide");
-                    }
-                    $data[$field] = $value;
-                    break;
-                default:
-                    $data[$field] = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-            }
+    // Récupérer les réservations par id_event avec jointure sur evenement et user (tri DESC)
+    public function afficherReservationsParEvenement($idEvent) {
+        $sql = "SELECT r.*, e.titre, e.date, e.prix, (r.nombre_places * e.prix) AS total, u.nom, u.prenom, u.telephone 
+                FROM reservation r 
+                INNER JOIN evenement e ON r.id_event = e.id_event
+                INNER JOIN user u ON r.id_user = u.id_user
+                WHERE r.id_event = :idEvent
+                ORDER BY r.id_reservation DESC";
+        $db = getDB();
+        try {
+            $query = $db->prepare($sql);
+            $query->bindValue(':idEvent', $idEvent, PDO::PARAM_INT);
+            $query->execute();
+            return $query->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            die('Erreur: ' . $e->getMessage());
         }
-        
-        return $data;
     }
 
-    private function jsonResponse($success, $message = '', $data = []) {
-        header('Content-Type: application/json');
-        http_response_code($success ? 200 : 400);
-        echo json_encode([
-            'success' => $success,
-            'message' => $message,
-            'data' => $data
-        ]);
-        exit;
+    // Supprimer une réservation
+    public function supprimerReservation($idReservation) {
+        $sql = "DELETE FROM reservation WHERE id_reservation = :id_reservation";
+        $db = getDB();
+        try {
+            $query = $db->prepare($sql);
+            $query->bindValue(':id_reservation', $idReservation, PDO::PARAM_INT);
+            $query->execute();
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    // Modifier une réservation
+    public function modifierReservation(Reservation $reservation) {
+        $sql = "UPDATE reservation SET 
+                    id_event = :id_event,
+                    id_user = :id_user,
+                    nombre_places = :nombre_places,
+                    categorie = :categorie,
+                    mode_paiement = :mode_paiement
+                WHERE id_reservation = :id_reservation";
+        $db = getDB();
+        try {
+            $query = $db->prepare($sql);
+            $query->execute([
+                'id_event'         => $reservation->getIdEvent(),
+                'id_user'          => $reservation->getIdUser(),
+                'nombre_places'    => $reservation->getNombrePlaces(),
+                'categorie'        => $reservation->getCategorie(),
+                'mode_paiement'    => $reservation->getModePaiement(),
+                'id_reservation'   => $reservation->getIdReservation()
+            ]);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 }
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'GET') {
-    $controller = new ReservationController();
-    $controller->handleRequest();
-} else {
-    http_response_code(405);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'message' => 'Méthode non autorisée'
-    ]);
-}
+?>

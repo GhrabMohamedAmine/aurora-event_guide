@@ -1,14 +1,18 @@
 <?php
-require_once __DIR__.'/../../config.php';
-require_once __DIR__.'/../../model/Event.php';
-require_once __DIR__.'/../../model/reserve.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../model/Event.php';
+require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
 
 // Démarrer la session pour les messages flash
 session_start();
 
-// Récupérer tous les événements et réservations
+// Récupérer tous les événements
 $events = Event::getAll();
-$reservations = Reservation::getAll();
+
+// Utiliser ReservationC pour récupérer les réservations avec les détails de l'utilisateur
+$reservationController = new ReservationC();
+$reservations = $reservationController->afficherReservations();
 ?>
 
 <!DOCTYPE html>
@@ -58,11 +62,6 @@ $reservations = Reservation::getAll();
         .sidebar-header h1 {
             font-size: 20px;
             margin-bottom: 5px;
-        }
-
-        .sidebar-header h2 {
-            font-size: 14px;
-            color: #bdc3c7;
         }
 
         .sidebar-menu {
@@ -238,13 +237,12 @@ $reservations = Reservation::getAll();
             background-color: #c82333;
         }
 
-        .btn-add {
+        .btn-add, .btn-calendar {
             background-color: #28a745;
             padding: 10px 15px;
-            margin-bottom: 20px;
         }
 
-        .btn-add:hover {
+        .btn-add:hover, .btn-calendar:hover {
             background-color: #218838;
         }
 
@@ -266,14 +264,14 @@ $reservations = Reservation::getAll();
             color: #721c24;
         }
 
-        /* Styles pour les nouveaux éléments */
+        /* Event Image */
         .event-image {
             width: 60px;
             height: 60px;
             object-fit: cover;
             border-radius: 4px;
         }
-        
+
         .description-cell {
             max-width: 200px;
             white-space: nowrap;
@@ -311,7 +309,7 @@ $reservations = Reservation::getAll();
                 width: 60px;
                 overflow: hidden;
             }
-            .sidebar-header h1, .sidebar-header h2, .sidebar-menu li span {
+            .sidebar-header h1, .sidebar-menu li span {
                 display: none;
             }
             .sidebar-menu li {
@@ -330,38 +328,29 @@ $reservations = Reservation::getAll();
     </style>
 </head>
 <body>
-<aside class="sidebar">
+    <aside class="sidebar">
         <div class="sidebar-header">
-        <img src="logo.png" alt="Aurora Event Logo" style="height: 40px; margin-right: 10px;">
+            <img src="logo.png" alt="Aurora Event Logo" style="height: 40px; margin-right: 10px;">
             <h1>Aurora Event</h1>
         </div>
         <ul class="sidebar-menu">
-        <li class="active">
+            <li>
                 <i class="fas fa-tachometer-alt"></i>
-                <a href="index.html" style="color: inherit; text-decoration: none;">
+                <a href="index.php" style="color: inherit; text-decoration: none;">
                     <span>Dashboard</span>
                 </a>
             </li>
             <li>
-                
+                <i class="fas fa-user"></i>
+                <a href="User.php" style="color: inherit; text-decoration: none;">
+                    <span>Users</span>
+                </a>
             </li>
-            <li>
-    <i class="fas fa-user"></i>
-    <a href="User.php" style="color: inherit; text-decoration: none;">
-        <span>Users</span>
-    </a>
-      </li>
-      <li>
-                
-            </li>
-            <li>
+            <li class="active">
                 <i class="fas fa-calendar-alt"></i>
                 <a href="afficher.php" style="color: inherit; text-decoration: none;">
                     <span>Events</span>
                 </a>
-            </li>
-            <li>
-                
             </li>
             <li>
                 <i class="fas fa-box"></i>
@@ -370,16 +359,10 @@ $reservations = Reservation::getAll();
                 </a>
             </li>
             <li>
-                
-            </li>
-            <li>
                 <i class="fas fa-book"></i>
                 <a href="Publications.php" style="color: inherit; text-decoration: none;">
                     <span>Publications</span>
                 </a>
-            </li>
-            <li>
-                
             </li>
             <li>
                 <i class="fas fa-exclamation-circle"></i>
@@ -394,13 +377,14 @@ $reservations = Reservation::getAll();
                 </a>
             </li>
             <li>
-            <i class="fas fa-sign-out-alt"></i>
-            <a href="logout.php" style="color: inherit; text-decoration: none;">
-                <span>Déconnexion</span>
-            </a>
-        </li>
+                <i class="fas fa-sign-out-alt"></i>
+                <a href="logout.php" style="color: inherit; text-decoration: none;">
+                    <span>Déconnexion</span>
+                </a>
+            </li>
         </ul>
     </aside>
+
     <!-- Main Content -->
     <main class="main-content">
         <!-- Top Navigation -->
@@ -437,9 +421,14 @@ $reservations = Reservation::getAll();
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="font-size: 16px; color: #381d51;">Liste des Événements</h3>
-                <a href="ajouter.php" class="btn btn-add">
-                    <i class="fas fa-plus"></i> Ajouter un événement
-                </a>
+                <div>
+                    <a href="ajouter.php" class="btn btn-add">
+                        <i class="fas fa-plus"></i> Ajouter un événement
+                    </a>
+                    <a href="index.php" class="btn btn-calendar">
+                        <i class="fas fa-calendar"></i> Calendrier
+                    </a>
+                </div>
             </div>
 
             <?php if (empty($events)): ?>
@@ -454,6 +443,7 @@ $reservations = Reservation::getAll();
                             <th>Date</th>
                             <th>Heure</th>
                             <th>Lieu</th>
+                            <th>Prix</th>
                             <th>Description</th>
                             <th>Image</th>
                             <th>Actions</th>
@@ -462,14 +452,15 @@ $reservations = Reservation::getAll();
                     <tbody>
                         <?php foreach ($events as $event): ?>
                             <tr>
-                                <td><?= htmlspecialchars($event->getId()) ?></td>
+                                <td><?= htmlspecialchars($event->getIdEvent()) ?></td>
                                 <td><?= htmlspecialchars($event->getTitre()) ?></td>
                                 <td><?= htmlspecialchars($event->getArtiste()) ?></td>
                                 <td><?= htmlspecialchars($event->getDate()) ?></td>
-                                <td><?= htmlspecialchars($event->getHeure()) ?></td>
+                                <td><?= htmlspecialchars($event->getHeure() ?? 'N/A') ?></td>
                                 <td><?= htmlspecialchars($event->getLieu()) ?></td>
-                                <td class="description-cell" title="<?= htmlspecialchars($event->getDescription()) ?>">
-                                    <?= htmlspecialchars($event->getDescription()) ?>
+                                <td><?= htmlspecialchars($event->getPrix() ?? 'N/A') ?> TND</td>
+                                <td class="description-cell" title="<?= htmlspecialchars($event->getDescription() ?? 'N/A') ?>">
+                                    <?= htmlspecialchars($event->getDescription() ?? 'N/A') ?>
                                 </td>
                                 <td>
                                     <?php if ($event->getImage()): ?>
@@ -480,10 +471,10 @@ $reservations = Reservation::getAll();
                                     <?php endif; ?>
                                 </td>
                                 <td class="action-buttons">
-                                    <a href="modifier.php?id=<?= $event->getId() ?>" class="btn btn-edit">
+                                    <a href="modifier.php?id_event=<?= $event->getIdEvent() ?>" class="btn btn-edit">
                                         <i class="fas fa-edit"></i> Modifier
                                     </a>
-                                    <a href="supprimer.php?id=<?= $event->getId() ?>" class="btn btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet événement?')">
+                                    <a href="supprimer.php?id_event=<?= $event->getIdEvent() ?>" class="btn btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet événement?')">
                                         <i class="fas fa-trash"></i> Supprimer
                                     </a>
                                 </td>
@@ -498,7 +489,7 @@ $reservations = Reservation::getAll();
         <div class="table-container" id="reservations">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="font-size: 16px; color: #381d51;">Liste des Réservations</h3>
-                <a href="reserve.php" class="btn btn-add">
+                <a href="../../view/front/reserve.php" class="btn btn-add">
                     <i class="fas fa-plus"></i> Ajouter une réservation
                 </a>
             </div>
@@ -511,29 +502,35 @@ $reservations = Reservation::getAll();
                         <tr>
                             <th>ID</th>
                             <th>ID Événement</th>
+                            <th>ID Utilisateur</th>
                             <th>Nom</th>
+                            <th>Prénom</th>
                             <th>Téléphone</th>
                             <th>Places</th>
                             <th>Catégorie</th>
                             <th>Paiement</th>
+                            <th>Total (TND)</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($reservations as $reservation): ?>
                             <tr>
-                                <td><?= htmlspecialchars($reservation->getIdReservation()) ?></td>
-                                <td><?= htmlspecialchars($reservation->getIdEvent()) ?></td>
-                                <td><?= htmlspecialchars($reservation->getNom()) ?></td>
-                                <td><?= htmlspecialchars($reservation->getTelephone()) ?></td>
-                                <td><?= htmlspecialchars($reservation->getNombrePlaces()) ?></td>
-                                <td><?= htmlspecialchars($reservation->getCategorie()) ?></td>
-                                <td><?= htmlspecialchars($reservation->getModePaiement()) ?></td>
+                                <td><?= htmlspecialchars($reservation['id_reservation']) ?></td>
+                                <td><?= htmlspecialchars($reservation['id_event']) ?></td>
+                                <td><?= htmlspecialchars($reservation['id_user']) ?></td>
+                                <td><?= htmlspecialchars($reservation['nom']) ?></td>
+                                <td><?= htmlspecialchars($reservation['prenom'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($reservation['telephone']) ?></td>
+                                <td><?= htmlspecialchars($reservation['nombre_places']) ?></td>
+                                <td><?= htmlspecialchars($reservation['categorie']) ?></td>
+                                <td><?= htmlspecialchars($reservation['mode_paiement']) ?></td>
+                                <td><?= htmlspecialchars(number_format($reservation['total'], 2)) ?></td>
                                 <td class="action-buttons">
-                                    <a href="modifiy.php?id=<?= $reservation->getIdReservation() ?>" class="btn btn-edit">
+                                    <a href="modifiy.php?id_reservation=<?= $reservation['id_reservation'] ?>" class="btn btn-edit">
                                         <i class="fas fa-edit"></i> Modifier
                                     </a>
-                                    <a href="delete.php?id=<?= $reservation->getIdReservation() ?>" class="btn btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette réservation?')">
+                                    <a href="delete.php?id_reservation=<?= $reservation['id_reservation'] ?>" class="btn btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette réservation?')">
                                         <i class="fas fa-trash"></i> Supprimer
                                     </a>
                                 </td>
@@ -545,34 +542,32 @@ $reservations = Reservation::getAll();
         </div>
     </main>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Fonction pour confirmer la suppression
         function confirmDelete() {
             return confirm('Êtes-vous sûr de vouloir supprimer cet élément?');
         }
-        
-        // Fonction pour filtrer les tableaux
+
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.querySelector('.search-bar input');
-            
+
             searchInput.addEventListener('input', function() {
                 const searchTerm = this.value.toLowerCase();
                 const tables = document.querySelectorAll('.table');
-                
+
                 tables.forEach(table => {
                     const rows = table.querySelectorAll('tbody tr');
-                    
+
                     rows.forEach(row => {
                         let rowText = '';
                         const cells = row.querySelectorAll('td');
                         cells.forEach((cell, index) => {
-                            // Skip the last cell (actions column)
                             if (index < cells.length - 1) {
                                 rowText += cell.textContent.toLowerCase() + ' ';
                             }
                         });
-                        
+
                         if (rowText.includes(searchTerm)) {
                             row.style.display = '';
                         } else {

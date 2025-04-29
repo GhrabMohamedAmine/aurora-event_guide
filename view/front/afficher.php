@@ -1,12 +1,28 @@
 <?php
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../model/Event.php';
+require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
 
-// Start session for flash messages
+// Start session for flash messages and user authentication
 session_start();
 
 // Get all events
 $events = Event::getAll();
+
+// Initialize reservation controller
+$reservationController = new ReservationC();
+$reservations = [];
+
+// Handle search by id_reservation
+if (isset($_POST['id_reservation']) && !empty($_POST['id_reservation'])) {
+    $id_reservation = filter_var($_POST['id_reservation'], FILTER_VALIDATE_INT);
+    if ($id_reservation !== false) {
+        $reservations = $reservationController->getReservationById($id_reservation);
+    } else {
+        $_SESSION['error'] = "Veuillez entrer un ID de réservation valide.";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -28,7 +44,6 @@ $events = Event::getAll();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
-        /* Existing styles from index.html */
         .event-container {
             display: flex;
             flex-direction: row;
@@ -179,7 +194,6 @@ $events = Event::getAll();
             transform: translateX(-50%);
         }
 
-        /* Horizontal scrolling events */
         .events-horizontal-scroll {
             display: flex;
             overflow-x: auto;
@@ -257,6 +271,19 @@ $events = Event::getAll();
             font-size: 1.2rem;
         }
 
+        .event-price {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #381d51;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .event-price i {
+            font-size: 1.2rem;
+        }
+
         .scroll-arrows {
             display: flex;
             justify-content: center;
@@ -297,6 +324,80 @@ $events = Event::getAll();
         .error {
             background-color: #f8d7da;
             color: #721c24;
+        }
+
+        /* Search Bar and Reservations Table */
+        .search-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .search-bar {
+            position: relative;
+            display: inline-block;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .search-bar input {
+            padding: 10px 40px 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 16px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: #381d51;
+            box-shadow: 0 0 0 2px rgba(56, 29, 81, 0.2);
+        }
+
+        .search-bar button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #381d51;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .table-container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .table th {
+            background-color: #381d51;
+            color: white;
+            font-size: 13px;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table tr:hover {
+            background-color: #f9f9f9;
         }
 
         @media (max-width: 992px) {
@@ -345,7 +446,7 @@ $events = Event::getAll();
 
         <nav class="navbar navbar-expand-lg">
             <div class="container">
-                <a class="navbar-brand" href="index.php">
+                <a class="navbar-brand" href="index.html">
                     <img src="images/logo.png" alt="Logo d'Auroura Event" style="height: 50px; margin-right: 10px">
                     Aurora Event
                 </a>
@@ -498,9 +599,13 @@ $events = Event::getAll();
                                         </div>
                                         <p><strong>Date:</strong> <?= htmlspecialchars($event->getDate()) ?></p>
                                         <p><strong>Location:</strong> <?= htmlspecialchars($event->getLieu()) ?></p>
+                                        <div class="event-price">
+                                            <i class="fas fa-money-bill-wave"></i>
+                                            <span><?= htmlspecialchars(number_format($event->getPrix(), 2, '.', '')) ?> TND</span>
+                                        </div>
                                         <p><?= htmlspecialchars($event->getDescription() ?? 'No description available.') ?></p>
                                         <div class="event-card-actions">
-                                            <a href="reserve.php?id=<?= $event->getId() ?>" class="btn btn-reserve">
+                                            <a href="reserve.php?id_event=<?= $event->getIdEvent() ?>" class="btn btn-reserve">
                                                 <i class="fas fa-ticket-alt"></i> Reserve Now
                                             </a>
                                         </div>
@@ -520,7 +625,56 @@ $events = Event::getAll();
                     <?php endif; ?>
                 </div>
 
-                <!-- Why Choose Us Section -->
+                <!-- Reservations Search and Display -->
+                <div class="section-title">
+                    <h2>Your Reservations</h2>
+                </div>
+                <div class="search-container">
+                    <form method="POST" action="" id="searchForm" autocomplete="off">
+                        <div class="search-bar">
+                            <input type="number" name="id_reservation" id="id_reservation" placeholder="Enter your Reservation ID" required autocomplete="off">
+                            <button type="submit"><i class="fas fa-search"></i></button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-container">
+                    <?php if (empty($reservations)): ?>
+                        <p>No reservations found. Please enter your Reservation ID to view your reservation.</p>
+                    <?php else: ?>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Event</th>
+                                    <th>Name</th>
+                                    <th>First Name</th>
+                                    <th>Phone</th>
+                                    <th>Seats</th>
+                                    <th>Category</th>
+                                    <th>Payment</th>
+                                    <th>Total (TND)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($reservations as $reservation): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($reservation['id_reservation']) ?></td>
+                                        <td><?= htmlspecialchars($reservation['event_title']) ?></td>
+                                        <td><?= htmlspecialchars($reservation['nom']) ?></td>
+                                        <td><?= htmlspecialchars($reservation['prenom'] ?? '') ?></td>
+                                        <td><?= htmlspecialchars($reservation['telephone']) ?></td>
+                                        <td><?= htmlspecialchars($reservation['nombre_places']) ?></td>
+                                        <td><?= htmlspecialchars($reservation['categorie']) ?></td>
+                                        <td><?= htmlspecialchars($reservation['mode_paiement']) ?></td>
+                                        <td><?= htmlspecialchars(number_format($reservation['total'], 2)) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+
                 <div class="row mt-5">
                     <div class="col-12">
                         <div class="p-4" style="background-color: #f8f9fa; border-radius: 15px;">
@@ -749,7 +903,6 @@ $events = Event::getAll();
     <script src="js/custom.js"></script>
 
     <script>
-        // Horizontal scrolling functionality
         function scrollEvents(offset) {
             const container = document.getElementById('eventsScroll');
             container.scrollBy({
@@ -758,7 +911,6 @@ $events = Event::getAll();
             });
         }
 
-        // Keyboard navigation
         document.addEventListener('keydown', function(e) {
             const container = document.getElementById('eventsScroll');
             if (e.key === 'ArrowLeft') {
@@ -768,8 +920,8 @@ $events = Event::getAll();
             }
         });
 
-        // Enhanced smooth scrolling for navigation
         document.addEventListener('DOMContentLoaded', function() {
+            // Smooth scrolling for anchor links
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
                 anchor.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -782,7 +934,13 @@ $events = Event::getAll();
                     }
                 });
             });
+
+            // Reset the search form on page load
+            const searchForm = document.getElementById('searchForm');
+            if (searchForm) {
+                searchForm.reset();
+            }
         });
     </script>
 </body>
-</html> 
+</html>

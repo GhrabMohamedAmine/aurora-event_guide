@@ -3,16 +3,16 @@ require_once __DIR__.'/../../config.php';
 require_once __DIR__.'/../../model/Event.php';
 
 // Vérifier si l'ID est présent dans l'URL
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+if (!isset($_GET['id_event']) || !is_numeric($_GET['id_event'])) {
     header("Location: afficher.php?error=ID invalide");
     exit;
 }
 
-$id = (int)$_GET['id'];
+$id_event = (int)$_GET['id_event'];
 
 try {
     // Récupérer l'événement avant suppression pour gérer l'image
-    $event = Event::getById($id);
+    $event = Event::getById($id_event);
     
     if (!$event) {
         header("Location: afficher.php?error=Événement introuvable");
@@ -20,7 +20,7 @@ try {
     }
 
     // Supprimer l'image associée si elle existe
-    $imagePath = __DIR__.'/../../uploads/'.$event->getImage();
+    $imagePath = __DIR__.'/../../Uploads/'.$event->getImage();
     if ($event->getImage() && file_exists($imagePath)) {
         unlink($imagePath);
     }

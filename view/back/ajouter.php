@@ -11,10 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $heure = $_POST['heure'] ?? '';
     $lieu = $_POST['lieu'] ?? '';
     $description = $_POST['description'] ?? '';
+    $prix = $_POST['prix'] ?? '';
 
     $image = '';
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = __DIR__.'/../../uploads/';
+        $uploadDir = __DIR__.'/../../Uploads/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
@@ -23,19 +24,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetPath = $uploadDir.$filename;
         
         if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
-            $image = 'uploads/'.$filename;
+            $image = 'Uploads/'.$filename;
         }
     }
 
-    if ($titre && $artiste && $date && $heure && $lieu) {
+    // Validate prix
+    if (!is_numeric($prix) || $prix < 0) {
+        $_SESSION['error'] = "Le prix doit être un nombre positif";
+    } elseif ($titre && $artiste && $date && $heure && $lieu && $prix !== '') {
         $event = new Event();
-        $event->setTitre($titre);
-        $event->setArtiste($artiste);
-        $event->setDate($date);
-        $event->setHeure($heure);
-        $event->setLieu($lieu);
-        $event->setDescription($description);
-        $event->setImage($image);
+        $event->setTitre($titre)
+              ->setArtiste($artiste)
+              ->setDate($date)
+              ->setHeure($heure)
+              ->setLieu($lieu)
+              ->setDescription($description)
+              ->setImage($image)
+              ->setPrix($prix);
 
         if ($event->create()) {
             $_SESSION['success'] = "Événement ajouté avec succès!";
@@ -491,6 +496,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 
                 <div class="form-group">
+                    <label for="prix">Prix (TND)*</label>
+                    <input type="number" id="prix" name="prix" step="0.01" min="0" required>
+                    <div id="prix-error" class="error-message">Le prix doit être un nombre positif</div>
+                </div>
+                
+                <div class="form-group">
                     <label for="description">Description</label>
                     <textarea id="description" name="description" rows="4"></textarea>
                 </div>
@@ -515,7 +526,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Masquer les messages après 5 secondes
             setTimeout(function() {
                 var successMessage = document.querySelector(".message.success");
                 if (successMessage) {
@@ -528,16 +538,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }, 5000);
 
-            // Validation du formulaire
             const form = document.getElementById('eventForm');
             const titreInput = document.getElementById('titre');
             const artisteInput = document.getElementById('artiste');
             const dateInput = document.getElementById('date');
             const heureInput = document.getElementById('heure');
             const lieuInput = document.getElementById('lieu');
+            const prixInput = document.getElementById('prix');
             const imageInput = document.getElementById('image');
 
-            // Fonction pour afficher les erreurs
             function showError(input, errorId, message) {
                 input.classList.add('error-field');
                 const errorElement = document.getElementById(errorId);
@@ -545,13 +554,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 errorElement.style.display = 'block';
             }
 
-            // Fonction pour cacher les erreurs
             function hideError(input, errorId) {
                 input.classList.remove('error-field');
                 document.getElementById(errorId).style.display = 'none';
             }
 
-            // Validation du titre
             titreInput.addEventListener('input', function() {
                 if (this.value.length < 3 && this.value.length > 0) {
                     showError(this, 'titre-error', 'Le titre doit contenir au moins 3 caractères');
@@ -560,7 +567,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Validation de l'artiste
             artisteInput.addEventListener('input', function() {
                 if (this.value.length < 3 && this.value.length > 0) {
                     showError(this, 'artiste-error', 'L\'artiste doit contenir au moins 3 caractères');
@@ -569,7 +575,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Validation de la date
             dateInput.addEventListener('change', function() {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
@@ -582,7 +587,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Validation de l'heure
             heureInput.addEventListener('change', function() {
                 if (!this.value) {
                     showError(this, 'heure-error', 'Veuillez sélectionner une heure valide');
@@ -591,7 +595,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Validation du lieu
             lieuInput.addEventListener('input', function() {
                 if (this.value.length < 3 && this.value.length > 0) {
                     showError(this, 'lieu-error', 'Le lieu doit contenir au moins 3 caractères');
@@ -600,7 +603,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Validation de l'image (optionnelle)
+            prixInput.addEventListener('input', function() {
+                if (this.value < 0 || !this.value) {
+                    showError(this, 'prix-error', 'Le prix doit être un nombre positif');
+                } else {
+                    hideError(this, 'prix-error');
+                }
+            });
+
             imageInput.addEventListener('change', function() {
                 if (this.files.length > 0) {
                     const file = this.files[0];
@@ -613,23 +623,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Validation lors de la soumission du formulaire
             form.addEventListener('submit', function(event) {
                 let isValid = true;
 
-                // Validation du titre
                 if (titreInput.value.length < 3) {
                     showError(titreInput, 'titre-error', 'Le titre doit contenir au moins 3 caractères');
                     isValid = false;
                 }
 
-                // Validation de l'artiste
                 if (artisteInput.value.length < 3) {
                     showError(artisteInput, 'artiste-error', 'L\'artiste doit contenir au moins 3 caractères');
                     isValid = false;
                 }
 
-                // Validation de la date
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const selectedDate = new Date(dateInput.value);
@@ -638,19 +644,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     isValid = false;
                 }
 
-                // Validation de l'heure
                 if (!heureInput.value) {
                     showError(heureInput, 'heure-error', 'Veuillez sélectionner une heure valide');
                     isValid = false;
                 }
 
-                // Validation du lieu
                 if (lieuInput.value.length < 3) {
                     showError(lieuInput, 'lieu-error', 'Le lieu doit contenir au moins 3 caractères');
                     isValid = false;
                 }
 
-                // Validation de l'image (optionnelle)
+                if (prixInput.value < 0 || !prixInput.value) {
+                    showError(prixInput, 'prix-error', 'Le prix doit être un nombre positif');
+                    isValid = false;
+                }
+
                 if (imageInput.files.length > 0) {
                     const file = imageInput.files[0];
                     const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -662,7 +670,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if (!isValid) {
                     event.preventDefault();
-                    // Faire défiler jusqu'au premier champ erroné
                     const firstError = document.querySelector('.error-field');
                     if (firstError) {
                         firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -670,7 +677,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Initialiser la date minimale à aujourd'hui
             const today = new Date().toISOString().split('T')[0];
             dateInput.setAttribute('min', today);
         });

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/../model/Event.php';
+require_once __DIR__.'/../config.php';
 
 class EventController {
     private $model;
@@ -26,8 +27,10 @@ class EventController {
                     $this->getEvent();
                     break;
                 case 'list':
-                default:
                     $this->listEvents();
+                    break;
+                default:
+                    $this->jsonResponse(false, 'Action inconnue');
                     break;
             }
         } catch (Exception $e) {
@@ -45,10 +48,10 @@ class EventController {
                 $data['image'] = $imagePath;
             }
         }
-        
+
         $event = new Event();
         $event->hydrate($data);
-        
+
         $success = $event->create();
         $this->jsonResponse($success, $success ? 'Événement ajouté avec succès' : 'Erreur lors de l\'ajout');
     }
@@ -68,10 +71,10 @@ class EventController {
         } elseif (!empty($_POST['old_image'])) {
             $data['image'] = $_POST['old_image'];
         }
-        
+
         $event = new Event();
         $event->hydrate($data);
-        
+
         $success = $event->update();
         $this->jsonResponse($success, $success ? 'Événement modifié avec succès' : 'Erreur lors de la modification');
     }
@@ -81,15 +84,15 @@ class EventController {
             $this->jsonResponse(false, 'ID manquant');
             return;
         }
-    
+
         $id = (int)$_POST['id'];
         $event = new Event();
         $event->setId($id);
-    
+
         if (!empty($_POST['image'])) {
             $this->deleteImage($_POST['image']);
         }
-    
+
         try {
             $success = $event->delete();
             $this->jsonResponse($success, $success ? 'Supprimé' : 'Échec');
@@ -120,18 +123,18 @@ class EventController {
 
     private function sanitizeInput($input, $requiredFields = []) {
         $data = [];
-        
+
         foreach ($requiredFields as $field) {
             if (!isset($input[$field])) {
                 throw new Exception("Le champ $field est requis");
             }
-            
+
             $value = is_array($input[$field]) ? $input[$field] : trim($input[$field]);
-            
+
             if (empty($value) && $value !== '0' && $field !== 'description') {
                 throw new Exception("Le champ $field ne peut pas être vide");
             }
-            
+
             switch ($field) {
                 case 'id':
                     $data[$field] = (int)$value;
@@ -155,7 +158,7 @@ class EventController {
                     $data[$field] = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
             }
         }
-        
+
         return $data;
     }
 
@@ -164,31 +167,42 @@ class EventController {
         if (!file_exists($targetDir)) {
             mkdir($targetDir, 0777, true);
         }
-        
+
         $fileName = uniqid() . '_' . basename($_FILES['image']['name']);
         $targetFile = $targetDir . $fileName;
         $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
-        
+
         $allowedTypes = ['jpg', 'jpeg', 'png', 'gif'];
         if (!in_array($imageFileType, $allowedTypes)) {
             throw new Exception("Seuls les fichiers JPG, JPEG, PNG et GIF sont autorisés.");
         }
-        
+
         if ($_FILES['image']['size'] > 2000000) {
             throw new Exception("La taille du fichier ne doit pas dépasser 2MB.");
         }
-        
+
         if (move_uploaded_file($_FILES['image']['tmp_name'], $targetFile)) {
             return 'uploads/' . $fileName;
         } else {
             throw new Exception("Erreur lors de l'upload de l'image.");
         }
     }
-    
+
     private function deleteImage($imagePath) {
         $fullPath = __DIR__ . '/../' . $imagePath;
         if (file_exists($fullPath)) {
             unlink($fullPath);
+        }
+    }
+
+    // Méthode modifiée pour trier par ID décroissant
+    public function afficherEvenements() {
+        $sql = "SELECT * FROM evenement ORDER BY id_event DESC"; // Ajout de ORDER BY DESC
+        $db = config::getConnexion();
+        try {
+            return $db->query($sql)->fetchAll();
+        } catch (Exception $e) {
+            die('Erreur: ' . $e->getMessage());
         }
     }
 
@@ -204,6 +218,7 @@ class EventController {
     }
 }
 
+// Exécution automatique du controller selon la méthode HTTP
 if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'GET') {
     $controller = new EventController();
     $controller->handleRequest();
@@ -215,4 +230,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'GET
         'message' => 'Méthode non autorisée'
     ]);
 }
-?>

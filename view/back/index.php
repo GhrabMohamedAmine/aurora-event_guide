@@ -1,3 +1,28 @@
+<?php
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../model/Event.php';
+
+// Récupérer tous les événements
+$events = Event::getAll();
+
+// Préparer les données pour le calendrier
+$calendarEvents = [];
+foreach ($events as $event) {
+    $date = DateTime::createFromFormat('d/m/Y', $event->getDate());
+    $formattedDate = $date ? $date->format('Y-m-d') : $event->getDate();
+    $calendarEvents[] = [
+        'id' => $event->getIdEvent(),
+        'title' => $event->getTitre() . ' - ' . $event->getArtiste(),
+        'start' => $formattedDate,
+        'description' => $event->getDescription(),
+        'location' => $event->getLieu(),
+        'color' => '#602299',
+        'textColor' => '#ffffff',
+        'url' => 'modifier.php?id_event=' . $event->getIdEvent()
+    ];
+}
+?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -5,6 +30,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aurora Event Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -358,6 +385,22 @@
             text-overflow: ellipsis;
         }
 
+        /* Calendar Styles */
+        .calendar-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #calendar {
+            margin-top: 20px;
+        }
+
+        .fc-event {
+            cursor: pointer;
+        }
+
         /* Footer Styles */
         .site-footer {
             background-color: white;
@@ -461,7 +504,7 @@
         <ul class="sidebar-menu">
             <li class="active">
                 <i class="fas fa-tachometer-alt"></i>
-                <a href="index.html" style="color: inherit; text-decoration: none;">
+                <a href="index.php" style="color: inherit; text-decoration: none;">
                     <span>Dashboard</span>
                 </a>
             </li>
@@ -511,7 +554,7 @@
             <div class="search-container">
                 <h2 style="font-size: 18px; color: #381d51;">Welcome to Aurora Event Dashboard</h2>
                 <div class="main-nav">
-                    <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                    <a href="index.php"><i class="fas fa-home"></i> Home</a>
                     <a href="afficher.php"><i class="fas fa-calendar"></i> Events</a>
                     <a href="products.php"><i class="fas fa-box"></i> Products</a>
                     <a href="Publications.php"><i class="fas fa-book"></i> Publications</a>
@@ -621,6 +664,20 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Calendar Section -->
+        <div class="content-section">
+            <div class="section-header">
+                <h2>Event Calendar</h2>
+            </div>
+            <div class="calendar-container">
+                <?php if (empty($events)): ?>
+                    <p>No events to display in the calendar.</p>
+                <?php else: ?>
+                    <div id="calendar"></div>
+                <?php endif; ?>
+            </div>
+        </div>
     </main>
 
     <!-- Footer -->
@@ -632,5 +689,55 @@
         </div>
         <p class="footer-text">© 2025 Aurora Event. All rights reserved.</p>
     </footer>
+
+    <!-- Scripts nécessaires pour FullCalendar -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/locale/fr.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('#calendar').fullCalendar({
+                header: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'month,agendaWeek,agendaDay,listMonth'
+                },
+                defaultView: 'month',
+                defaultDate: new Date(),
+                locale: 'fr',
+                navLinks: true,
+                editable: false,
+                eventLimit: true,
+                events: <?php echo json_encode($calendarEvents); ?>,
+                eventRender: function(event, element) {
+                    element.find('.fc-title').append('<br/><small>' + event.location + '</small>');
+                    element.attr('title', event.description);
+                    element.tooltip({
+                        container: 'body',
+                        placement: 'top',
+                        trigger: 'hover'
+                    });
+                },
+                eventClick: function(event) {
+                    if (event.url) {
+                        window.location.href = event.url;
+                        return false;
+                    }
+                },
+                views: {
+                    listMonth: {
+                        type: 'list',
+                        duration: { months: 1 },
+                        titleFormat: 'MMMM YYYY',
+                        listDayFormat: 'dddd D',
+                        noEventsMessage: 'Aucun événement ce mois-ci'
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>

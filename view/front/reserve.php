@@ -1,346 +1,322 @@
 <?php
-require_once __DIR__.'/../../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../model/Event.php';
-require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../model/Reserve.php';
+require_once __DIR__ . '/../../controller/reservec.php';
 
 session_start();
 
-// Définir l'URL de base
-$base_url = 'http://' . $_SERVER['HTTP_HOST'] . '/evenement';
+// Validate event ID
+$event_id_input = filter_input(INPUT_GET, 'id_event', FILTER_SANITIZE_STRING);
+if ($event_id_input === null || $event_id_input === false || !ctype_digit($event_id_input)) {
+    error_log("Invalid id_event received: " . ($event_id_input ?? 'null'));
+    $_SESSION['error'] = 'Invalid event ID. Please select a valid event.';
+    header('Location: afficher.php');
+    exit;
+}
 
-$event_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
-$event = $event_id ? Event::getById($event_id) : null;
+$event_id = (int)$event_id_input;
+if ($event_id <= 0) {
+    error_log("Non-positive id_event received: " . $event_id);
+    $_SESSION['error'] = 'Invalid event ID. The ID must be positive.';
+    header('Location: afficher.php');
+    exit;
+}
 
-// Récupérer tous les événements pour la liste déroulante
-$allEvents = Event::getAll();
+// Fetch the event
+$event = Event::getById($event_id);
+if (!$event) {
+    error_log("No event found for id_event: " . $event_id);
+    $_SESSION['error'] = "No event found with ID $event_id.";
+    header('Location: afficher.php');
+    exit;
+}
 
+// Get event price
+$event_price = $event->getPrix() ?? 0;
+
+// Check if id_user is provided in the query string
+$id_user_from_query = filter_input(INPUT_GET, 'id_user', FILTER_SANITIZE_STRING);
+if ($id_user_from_query) {
+    $form_data['id_user'] = $id_user_from_query;
+}
+
+// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errors = [];
     $data = [
-        'id_event' => filter_input(INPUT_POST, 'id_event', FILTER_VALIDATE_INT),
-        'nom' => trim(filter_input(INPUT_POST, 'nom', FILTER_SANITIZE_STRING)),
-        'telephone' => trim(filter_input(INPUT_POST, 'telephone', FILTER_SANITIZE_STRING)),
-        'nombre_places' => filter_input(INPUT_POST, 'nombre_places', FILTER_VALIDATE_INT),
+        'id_event' => $event_id,
+        'id_user' => trim(filter_input(INPUT_POST, 'id_user', FILTER_SANITIZE_STRING)),
+        'nombre_places' => filter_input(INPUT_POST, 'nombre_places', FILTER_VALIDATE_INT, [
+            'options' => [
+                'min_range' => 1,
+                'max_range' => 20
+            ]
+        ]),
         'categorie' => trim(filter_input(INPUT_POST, 'categorie', FILTER_SANITIZE_STRING)),
         'mode_paiement' => trim(filter_input(INPUT_POST, 'mode_paiement', FILTER_SANITIZE_STRING)),
     ];
 
-    if (!$data['id_event'] || $data['id_event'] <= 0) {
-        $errors[] = 'Événement invalide sélectionné.';
-    }
-    if (empty($data['nom'])) {
-        $errors[] = 'Le nom est requis.';
-    }
-    if (empty($data['telephone']) || !preg_match('/^[0-9]{8}$/', $data['telephone'])) {
-        $errors[] = 'Veuillez entrer un numéro de téléphone valide (8 chiffres).';
-    }
-    if (!$data['nombre_places'] || $data['nombre_places'] <= 0) {
-        $errors[] = 'Le nombre de places doit être un nombre positif.';
-    }
-    if (empty($data['categorie']) || !in_array($data['categorie'], ['VIP', 'Standard', 'Economy'])) {
-        $errors[] = 'Veuillez sélectionner une catégorie valide.';
-    }
-    if (empty($data['mode_paiement']) || !in_array($data['mode_paiement'], ['Credit Card', 'Cash', 'Mobile Payment'])) {
-        $errors[] = 'Veuillez sélectionner un mode de paiement valide.';
+    // Validate data
+    if (empty($data['id_user'])) {
+        $errors[] = 'User ID is required.';
     }
 
+    if (!$data['nombre_places'] || $data['nombre_places'] < 1 || $data['nombre_places'] > 20) {
+        $errors[] = 'Number of places must be between 1 and 20.';
+    }
+
+    $categories_valides = ['VIP', 'Standard', 'Economy'];
+    if (empty($data['categorie']) || !in_array($data['categorie'], $categories_valides)) {
+        $errors[] = 'Invalid category.';
+    }
+
+    $paiements_valides = ['Credit Card', 'Cash', 'Mobile Payment'];
+    if (empty($data['mode_paiement']) || !in_array($data['mode_paiement'], $paiements_valides)) {
+        $errors[] = 'Invalid payment method.';
+    }
+
+    // Verify user existence using id_user
     if (empty($errors)) {
-        $reservation = new Reservation($data);
-        if ($reservation->create()) {
-            $_SESSION['success'] = 'Réservation créée avec succès !';
-            header('Location: afficher.php');
-            exit;
-        } else {
-            $errors[] = 'Échec de la création de la réservation. Veuillez réessayer.';
+        try {
+            $db = getDB();
+            $stmt = $db->prepare("SELECT id_user FROM user WHERE id_user = :id_user");
+            $stmt->execute([':id_user' => $data['id_user']]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                $errors[] = "No user found with ID {$data['id_user']}. <a href='listeuser.php?id_event=$event_id'>See list of users</a>.";
+            }
+        } catch (PDOException $e) {
+            $errors[] = 'Error verifying user: ' . $e->getMessage();
+            error_log("User verification error: " . $e->getMessage());
         }
     }
 
-    $_SESSION['error'] = implode('<br>', $errors);
+    // Create reservation if no errors
+    if (empty($errors)) {
+        try {
+            $reservation = new Reservation($data);
+            $reservationController = new ReservationC();
+            if ($reservationController->ajouterReservation($reservation)) {
+                $_SESSION['success'] = 'Reservation created successfully!';
+                header('Location: afficher.php');
+                exit;
+            } else {
+                $errors[] = 'Failed to create reservation.';
+                error_log("Failed to create reservation for event ID: $event_id, user ID: {$data['id_user']}");
+            }
+        } catch (Exception $e) {
+            $errors[] = 'Technical error: ' . $e->getMessage();
+            error_log("Reservation error: " . $e->getMessage());
+        }
+    }
+
+    // Store errors for display
+    if (!empty($errors)) {
+        $_SESSION['form_errors'] = $errors;
+        $_SESSION['form_data'] = $data;
+        header("Location: reserve.php?id_event=$event_id");
+        exit;
+    }
 }
+
+// Retrieve form data in case of errors
+$form_data = $_SESSION['form_data'] ?? $form_data ?? [];
+$form_errors = $_SESSION['form_errors'] ?? [];
+unset($_SESSION['form_data'], $_SESSION['form_errors']);
 ?>
 
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Aurora Event - Réservation</title>
-    <link href="css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/templatemo-festava-live.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Réservation - <?= htmlspecialchars($event->getTitre()) ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #301934; }
-        .reservation-form-container { 
-            max-width: 600px; 
-            margin: 50px auto; 
-            padding: 30px; 
-            background-color: #fff; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); 
+        body { background-color: #602299; }
+        .reservation-card {
+            max-width: 600px;
+            margin: 2rem auto;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
-        .reservation-form-container h2 { 
-            font-size: 2rem; 
-            font-weight: 700; 
-            color: #602299; 
-            text-align: center; 
-            margin-bottom: 30px; 
-        }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { 
-            font-weight: 600; 
-            color: #602299; 
-            margin-bottom: 8px; 
-            display: block; 
-        }
-        .form-control { 
-            border-radius: 10px; 
-            border: 1px solid #ced4da; 
-            padding: 10px; 
-            font-size: 1rem; 
-        }
-        .form-control:focus { 
-            border-color: #602299; 
-            box-shadow: 0 0 5px rgba(96, 34, 153, 0.3); 
-        }
-        .btn-submit { 
-            background-color: #602299; 
-            color: white; 
-            border: none; 
-            padding: 12px 30px; 
-            border-radius: 30px; 
-            font-weight: 600; 
-            transition: all 0.3s; 
-            width: 100%; 
-            cursor: pointer; 
-            margin-bottom: 15px;
-        }
-        .btn-submit:hover { 
-            background-color: #4a1a7a; 
-            transform: translateY(-3px); 
-            box-shadow: 0 5px 15px rgba(96, 34, 153, 0.4); 
-        }
-        .btn-cancel {
-            background-color: #dc3545;
+        .event-header {
+            background-color: #301934;
             color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-weight: 600;
-            transition: all 0.3s;
-            width: 100%;
-            cursor: pointer;
-            text-decoration: none;
-            display: block;
-            text-align: center;
+            border-radius: 15px 15px 0 0;
+            padding: 1.5rem;
         }
-        .btn-cancel:hover {
-            background-color: #bb2d3b;
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        .form-container {
+            padding: 2rem;
+            background: white;
+            border-radius: 0 0 15px 15px;
         }
-        .message { 
-            padding: 10px; 
-            margin-bottom: 15px; 
-            border-radius: 5px; 
-            text-align: center; 
+        .btn-purple {
+            background-color: #301934;
+            color: white;
         }
-        .success { 
-            background-color: #d4edda; 
-            color: #155724; 
-        }
-        .error { 
-            background-color: #f8d7da; 
-            color: #721c24; 
-        }
-        .error-input {
-            border-color: #dc3545 !important;
+        .btn-purple:hover {
+            background-color: #301934;
+            color: white;
         }
         .error-message {
             color: #dc3545;
-            font-size: 0.875em;
+            font-size: 0.875rem;
             margin-top: 5px;
+            display: none;
         }
-        .button-group {
-            display: flex;
-            flex-direction: column;
+        .is-invalid + .error-message {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div class="reservation-form-container">
-        <h2>Réservation pour <?php echo $event ? htmlspecialchars($event->getTitre()) : 'Événement'; ?></h2>
-
-        <?php if (isset($_SESSION['success'])): ?>
-            <div class="message success"><?= htmlspecialchars($_SESSION['success']) ?></div>
-            <?php unset($_SESSION['success']); ?>
-        <?php endif; ?>
-        <?php if (isset($_SESSION['error'])): ?>
-            <div class="message error"><?= htmlspecialchars($_SESSION['error']) ?></div>
-            <?php unset($_SESSION['error']); ?>
-        <?php endif; ?>
-
-        <form id="reservationForm" action="reserve.php" method="POST">
-            <div class="form-group">
-                <label for="id_event">Événement</label>
-                <select class="form-control" id="id_event" name="id_event" required>
-                    <option value="">-- Sélectionnez un événement --</option>
-                    <?php foreach ($allEvents as $evt): ?>
-                        <option value="<?= $evt->getId() ?>" <?= $event_id == $evt->getId() ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($evt->getTitre()) ?> (ID: <?= $evt->getId() ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <div id="eventError" class="error-message"></div>
+    <div class="container py-5">
+        <div class="reservation-card">
+            <div class="event-header text-center">
+                <h2><?= htmlspecialchars($event->getTitre()) ?></h2>
+                <p class="mb-0"><?= htmlspecialchars($event->getDate()) ?> | Prix: <?= htmlspecialchars($event_price) ?> TND</p>
             </div>
             
-            <div class="form-group">
-                <label for="nom">Nom complet</label>
-                <input type="text" class="form-control" id="nom" name="nom" required>
-                <div id="nomError" class="error-message"></div>
+            <div class="form-container">
+                <?php if (!empty($form_errors)): ?>
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            <?php foreach ($form_errors as $error): ?>
+                                <li><?= $error ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+                
+                <form method="POST" action="reserve.php?id_event=<?= $event_id ?>" id="reservationForm">
+                    <input type="hidden" name="id_event" value="<?= $event_id ?>">
+                    
+                    <div class="mb-3">
+                        <label for="id_user" class="form-label">User ID</label>
+                        <input type="text" class="form-control <?= in_array('User ID is required.', $form_errors) ? 'is-invalid' : '' ?>" 
+                               id="id_user" name="id_user" value="<?= htmlspecialchars($form_data['id_user'] ?? '') ?>" required>
+                        <div id="id_user-error" class="error-message"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nombre_places" class="form-label">Number of Places</label>
+                        <input type="number" class="form-control <?= in_array('Number of places must be between 1 and 20.', $form_errors) ? 'is-invalid' : '' ?>" 
+                               id="nombre_places" name="nombre_places" min="1" max="20" 
+                               value="<?= htmlspecialchars($form_data['nombre_places'] ?? '1') ?>" required>
+                        <div id="nombre_places-error" class="error-message">Number of places must be between 1 and 20</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="total" class="form-label">Total Price (TND)</label>
+                        <input type="text" class="form-control" id="total" name="total" 
+                               value="<?= htmlspecialchars(($form_data['nombre_places'] ?? 1) * $event_price) ?>" readonly>
+                        <div id="total-error" class="error-message"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="categorie" class="form-label">Category</label>
+                        <select class="form-select <?= in_array('Invalid category.', $form_errors) ? 'is-invalid' : '' ?>" 
+                                id="categorie" name="categorie" required>
+                            <option value="">-- Select --</option>
+                            <option value="VIP" <?= ($form_data['categorie'] ?? '') === 'VIP' ? 'selected' : '' ?>>VIP</option>
+                            <option value="Standard" <?= ($form_data['categorie'] ?? '') === 'Standard' ? 'selected' : '' ?>>Standard</option>
+                            <option value="Economy" <?= ($form_data['categorie'] ?? '') === 'Economy' ? 'selected' : '' ?>>Economy</option>
+                        </select>
+                        <div id="categorie-error" class="error-message">Please select a category</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="mode_paiement" class="form-label">Payment Method</label>
+                        <select class="form-select <?= in_array('Invalid payment method.', $form_errors) ? 'is-invalid' : '' ?>" 
+                                id="mode_paiement" name="mode_paiement" required>
+                            <option value="">-- Select --</option>
+                            <option value="Credit Card" <?= ($form_data['mode_paiement'] ?? '') === 'Credit Card' ? 'selected' : '' ?>>Credit Card</option>
+                            <option value="Cash" <?= ($form_data['mode_paiement'] ?? '') === 'Cash' ? 'selected' : '' ?>>Cash</option>
+                            <option value="Mobile Payment" <?= ($form_data['mode_paiement'] ?? '') === 'Mobile Payment' ? 'selected' : '' ?>>Mobile Payment</option>
+                        </select>
+                        <div id="mode_paiement-error" class="error-message">Please select a payment method</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-purple btn-lg">Confirm Reservation</button>
+                        <a href="afficher.php" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
             </div>
-            
-            <div class="form-group">
-                <label for="telephone">Numéro de téléphone</label>
-                <input type="text" class="form-control" id="telephone" name="telephone" required>
-                <div id="telephoneError" class="error-message"></div>
-            </div>
-            
-            <div class="form-group">
-                <label for="nombre_places">Nombre de places</label>
-                <input type="number" class="form-control" id="nombre_places" name="nombre_places" min="1" required>
-                <div id="nombrePlacesError" class="error-message"></div>
-            </div>
-            
-            <div class="form-group">
-                <label for="categorie">Catégorie</label>
-                <select class="form-control" id="categorie" name="categorie" required>
-                    <option value="">-- Sélectionnez une catégorie --</option>
-                    <option value="VIP">VIP</option>
-                    <option value="Standard">Standard</option>
-                    <option value="Economy">Economy</option>
-                </select>
-                <div id="categorieError" class="error-message"></div>
-            </div>
-            
-            <div class="form-group">
-                <label for="mode_paiement">Mode de paiement</label>
-                <select class="form-control" id="mode_paiement" name="mode_paiement" required>
-                    <option value="">-- Sélectionnez un mode de paiement --</option>
-                    <option value="Credit Card">Carte de crédit</option>
-                    <option value="Cash">Espèces</option>
-                    <option value="Mobile Payment">Paiement mobile</option>
-                </select>
-                <div id="modePaiementError" class="error-message"></div>
-            </div>
-            
-            <div class="button-group">
-                <button type="submit" class="btn-submit">Confirmer la réservation</button>
-                <a href="<?php echo $base_url; ?>/view/back/modify.php?id=<?php echo $event_id; ?>" class="btn-cancel">Modifier</a>
-            </div>
-        </form>
+        </div>
     </div>
 
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('reservationForm');
             const inputs = {
-                id_event: document.getElementById('id_event'),
-                nom: document.getElementById('nom'),
-                telephone: document.getElementById('telephone'),
+                id_user: document.getElementById('id_user'),
                 nombre_places: document.getElementById('nombre_places'),
+                total: document.getElementById('total'),
                 categorie: document.getElementById('categorie'),
                 mode_paiement: document.getElementById('mode_paiement')
             };
+            
+            // Event price from PHP
+            const eventPrice = <?= json_encode($event_price) ?>;
 
-            // Gestion du changement d'événement
-            inputs.id_event.addEventListener('change', function() {
-                const selectedEventId = this.value;
-                if (selectedEventId) {
-                    window.location.href = `reserve.php?id=${selectedEventId}`;
-                }
+            // Real-time validation and total calculation
+            inputs.id_user.addEventListener('input', validateIdUser);
+            inputs.nombre_places.addEventListener('input', function() {
+                validateNombrePlaces();
+                updateTotal();
             });
-
-            // Validation en temps réel
-            inputs.nom.addEventListener('input', validateNom);
-            inputs.telephone.addEventListener('input', validateTelephone);
-            inputs.nombre_places.addEventListener('input', validateNombrePlaces);
             inputs.categorie.addEventListener('change', validateCategorie);
             inputs.mode_paiement.addEventListener('change', validateModePaiement);
 
-            // Validation à la soumission
+            // Form submission validation
             form.addEventListener('submit', function(e) {
                 let isValid = true;
-                
-                if (!validateEvent()) isValid = false;
-                if (!validateNom()) isValid = false;
-                if (!validateTelephone()) isValid = false;
+
+                if (!validateIdUser()) isValid = false;
                 if (!validateNombrePlaces()) isValid = false;
                 if (!validateCategorie()) isValid = false;
                 if (!validateModePaiement()) isValid = false;
-                
+
                 if (!isValid) {
                     e.preventDefault();
                 }
             });
 
-            // Fonctions de validation
-            function validateEvent() {
-                const value = inputs.id_event.value;
-                const errorElement = document.getElementById('eventError');
-                
-                if (value === '') {
-                    showError(inputs.id_event, errorElement, 'Veuillez sélectionner un événement');
-                    return false;
-                } else {
-                    clearError(inputs.id_event, errorElement);
-                    return true;
-                }
+            // Update total price
+            function updateTotal() {
+                const places = parseInt(inputs.nombre_places.value) || 1;
+                const total = places * eventPrice;
+                inputs.total.value = total.toFixed(2);
             }
 
-            function validateNom() {
-                const value = inputs.nom.value.trim();
-                const errorElement = document.getElementById('nomError');
-                
-                if (value === '') {
-                    showError(inputs.nom, errorElement, 'Le nom est requis');
-                    return false;
-                } else if (value.length < 3) {
-                    showError(inputs.nom, errorElement, 'Le nom doit contenir au moins 3 caractères');
-                    return false;
-                } else {
-                    clearError(inputs.nom, errorElement);
-                    return true;
-                }
-            }
+            // Validation functions
+            function validateIdUser() {
+                const value = inputs.id_user.value.trim();
+                const errorElement = document.getElementById('id_user-error');
 
-            function validateTelephone() {
-                const value = inputs.telephone.value.trim();
-                const errorElement = document.getElementById('telephoneError');
-                const phoneRegex = /^[0-9]{8}$/;
-                
                 if (value === '') {
-                    showError(inputs.telephone, errorElement, 'Le numéro de téléphone est requis');
-                    return false;
-                } else if (!phoneRegex.test(value)) {
-                    showError(inputs.telephone, errorElement, 'Veuillez entrer un numéro valide (8 chiffres)');
+                    showError(inputs.id_user, errorElement, 'User ID is required');
                     return false;
                 } else {
-                    clearError(inputs.telephone, errorElement);
+                    clearError(inputs.id_user, errorElement);
                     return true;
                 }
             }
 
             function validateNombrePlaces() {
                 const value = inputs.nombre_places.value;
-                const errorElement = document.getElementById('nombrePlacesError');
-                
+                const errorElement = document.getElementById('nombre_places-error');
+
                 if (value === '' || isNaN(value)) {
-                    showError(inputs.nombre_places, errorElement, 'Veuillez entrer un nombre');
+                    showError(inputs.nombre_places, errorElement, 'Please enter a number');
                     return false;
-                } else if (parseInt(value) <= 0) {
-                    showError(inputs.nombre_places, errorElement, 'Le nombre de places doit être positif');
+                } else if (parseInt(value) < 1 || parseInt(value) > 20) {
+                    showError(inputs.nombre_places, errorElement, 'Number of places must be between 1 and 20');
                     return false;
                 } else {
                     clearError(inputs.nombre_places, errorElement);
@@ -350,10 +326,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             function validateCategorie() {
                 const value = inputs.categorie.value;
-                const errorElement = document.getElementById('categorieError');
-                
+                const errorElement = document.getElementById('categorie-error');
+
                 if (value === '') {
-                    showError(inputs.categorie, errorElement, 'Veuillez sélectionner une catégorie');
+                    showError(inputs.categorie, errorElement, 'Please select a category');
                     return false;
                 } else {
                     clearError(inputs.categorie, errorElement);
@@ -363,10 +339,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             function validateModePaiement() {
                 const value = inputs.mode_paiement.value;
-                const errorElement = document.getElementById('modePaiementError');
-                
+                const errorElement = document.getElementById('mode_paiement-error');
+
                 if (value === '') {
-                    showError(inputs.mode_paiement, errorElement, 'Veuillez sélectionner un mode de paiement');
+                    showError(inputs.mode_paiement, errorElement, 'Please select a payment method');
                     return false;
                 } else {
                     clearError(inputs.mode_paiement, errorElement);
@@ -374,24 +350,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Fonctions utilitaires
+            // Utility functions
             function showError(input, errorElement, message) {
-                input.classList.add('error-input');
+                input.classList.add('is-invalid');
                 errorElement.textContent = message;
+                errorElement.style.display = 'block';
             }
 
             function clearError(input, errorElement) {
-                input.classList.remove('error-input');
+                input.classList.remove('is-invalid');
                 errorElement.textContent = '';
+                errorElement.style.display = 'none';
             }
 
-            // Formatage du téléphone
-            inputs.telephone.addEventListener('input', function(e) {
-                this.value = this.value.replace(/[^0-9]/g, '');
-                if (this.value.length > 8) {
-                    this.value = this.value.slice(0, 8);
+            // Control number of places
+            inputs.nombre_places.addEventListener('input', function(e) {
+                if (this.value < 1) {
+                    this.value = 1;
+                } else if (this.value > 20) {
+                    this.value = 20;
                 }
+                validateNombrePlaces();
+                updateTotal();
             });
+
+            // Initialize total
+            updateTotal();
         });
     </script>
 </body>

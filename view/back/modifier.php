@@ -6,16 +6,16 @@ require_once __DIR__.'/../../model/Event.php';
 session_start();
 
 // Vérifier si l'ID est présent dans l'URL
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+if (!isset($_GET['id_event']) || !is_numeric($_GET['id_event'])) {
     $_SESSION['error'] = "ID invalide";
     header("Location: afficher.php");
     exit;
 }
 
-$id = (int)$_GET['id'];
+$id_event = (int)$_GET['id_event'];
 
 // Récupérer l'événement à modifier
-$event = Event::getById($id);
+$event = Event::getById($id_event);
 
 if (!$event) {
     $_SESSION['error'] = "Événement introuvable";
@@ -31,12 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $heure = $_POST['heure'] ?? '';
     $lieu = $_POST['lieu'] ?? '';
     $description = $_POST['description'] ?? '';
+    $prix = $_POST['prix'] ?? null;
 
     // Gestion de l'upload de l'image
     $image = $event->getImage(); // Conserver l'image existante par défaut
     
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = __DIR__.'/../../uploads/';
+        $uploadDir = __DIR__.'/../Uploads/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
@@ -54,14 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($titre && $artiste && $date && $heure && $lieu) {
-        $event->setTitre($titre);
-        $event->setArtiste($artiste);
-        $event->setDate($date);
-        $event->setHeure($heure);
-        $event->setLieu($lieu);
-        $event->setDescription($description);
-        $event->setImage($image);
+    if ($titre && $artiste && $date && $heure && $lieu && $prix !== null && $prix !== '') {
+        $event->setTitre($titre)
+              ->setArtiste($artiste)
+              ->setDate($date)
+              ->setHeure($heure)
+              ->setLieu($lieu)
+              ->setDescription($description)
+              ->setImage($image)
+              ->setPrix($prix);
 
         if ($event->update()) {
             $_SESSION['success'] = "Événement modifié avec succès";
@@ -97,7 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             min-height: 100vh;
         }
 
-        /* Sidebar Styles */
         .sidebar {
             width: 250px;
             background-color: #301934;
@@ -158,7 +159,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 16px;
         }
 
-        /* Main Content */
         .main-content {
             margin-left: 250px;
             flex: 1;
@@ -166,7 +166,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: calc(100% - 250px);
         }
 
-        /* Top Navigation */
         .top-nav {
             display: flex;
             justify-content: space-between;
@@ -234,7 +233,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background-color: #f0f7ff;
         }
 
-        /* Form Styles */
         .event-form {
             background-color: white;
             border-radius: 8px;
@@ -318,7 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .btn-save {
-            background-color: #28a745;
+ Kraftfahrzeug-Haftpflichtversicherung background-color: #28a745;
             color: white;
         }
 
@@ -352,7 +350,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: #721c24;
         }
 
-        /* Responsive adjustments */
+        .error-message {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 width: 200px;
@@ -404,7 +408,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-header">
             <img src="logo.png" alt="Aurora Event Logo" style="height: 40px; margin-right: 10px;">
@@ -433,12 +436,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </ul>
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
-        <!-- Top Navigation -->
         <div class="top-nav">
             <div class="search-container">
-                <h2 style="font-size: 18px; color: #381d51;">Modifier l'événement #<?= htmlspecialchars($event->getId()) ?></h2>
+                <h2 style="font-size: 18px; color: #381d51;">Modifier l'événement #<?= htmlspecialchars($event->getIdEvent()) ?></h2>
                 <div class="search-bar">
                     <i class="fas fa-search"></i>
                     <input type="text" placeholder="Rechercher...">
@@ -450,7 +451,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <!-- Message Container -->
         <?php if (isset($_SESSION['success'])): ?>
             <div class="message success">
                 <?= htmlspecialchars($_SESSION['success']) ?>
@@ -465,37 +465,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <!-- Edit Event Form -->
         <div class="event-form">
             <h3 style="font-size: 16px; color: #381d51; margin-bottom: 20px;">
                 <span id="form-title">Modifier l'Événement</span>
             </h3>
-            <form method="post" action="modifier.php?id=<?= $event->getId() ?>" enctype="multipart/form-data">
-                <input type="hidden" name="id" value="<?= $event->getId() ?>">
+            <form method="post" action="modifier.php?id_event=<?= $event->getIdEvent() ?>" enctype="multipart/form-data" id="event-form">
+                <input type="hidden" name="id_event" value="<?= $event->getIdEvent() ?>">
                 
                 <div class="form-group">
                     <label for="titre">Titre</label>
                     <input type="text" id="titre" name="titre" value="<?= htmlspecialchars($event->getTitre()) ?>" required maxlength="255">
+                    <div class="error-message" id="titre-error"></div>
                 </div>
                 
                 <div class="form-group">
                     <label for="artiste">Artiste</label>
                     <input type="text" id="artiste" name="artiste" value="<?= htmlspecialchars($event->getArtiste()) ?>" required maxlength="255">
+                    <div class="error-message" id="artiste-error"></div>
                 </div>
                 
                 <div class="form-group">
                     <label for="date">Date</label>
                     <input type="date" id="date" name="date" value="<?= htmlspecialchars($event->getDate()) ?>" required>
+                    <div class="error-message" id="date-error"></div>
                 </div>
                 
                 <div class="form-group">
                     <label for="heure">Heure</label>
                     <input type="time" id="heure" name="heure" value="<?= htmlspecialchars($event->getHeure()) ?>" required>
+                    <div class="error-message" id="heure-error"></div>
                 </div>
                 
                 <div class="form-group">
                     <label for="lieu">Lieu</label>
                     <input type="text" id="lieu" name="lieu" value="<?= htmlspecialchars($event->getLieu()) ?>" required maxlength="255">
+                    <div class="error-message" id="lieu-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="prix">Prix (€)</label>
+                    <input type="number" id="prix" name="prix" value="<?= htmlspecialchars($event->getPrix()) ?>" step="0.01" min="0" required>
+                    <div class="error-message" id="prix-error"></div>
                 </div>
                 
                 <div class="form-group">
@@ -506,9 +516,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label for="image">Image</label>
                     <input type="file" id="image" name="image" accept="image/*">
+                    <div class="error-message" id="image-error"></div>
                     <?php if ($event->getImage()): ?>
                         <div class="current-image">
-                            <img src="../../uploads/<?= htmlspecialchars($event->getImage()) ?>" alt="Current Image">
+                            <img src="../Uploads/<?= htmlspecialchars($event->getImage()) ?>" alt="Current Image">
                             <span>Image actuelle</span>
                         </div>
                     <?php endif; ?>
@@ -527,8 +538,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
     <script>
-        // Hide success message after 5 seconds
+        function showError(inputElement, errorId, message) {
+            const errorElement = document.getElementById(errorId);
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            inputElement.style.borderColor = '#dc3545';
+        }
+
+        function hideError(inputElement, errorId) {
+            const errorElement = document.getElementById(errorId);
+            errorElement.textContent = '';
+            errorElement.style.display = 'none';
+            inputElement.style.borderColor = '#ddd';
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
+            const form = document.getElementById('event-form');
+            const titreInput = document.getElementById('titre');
+            const artisteInput = document.getElementById('artiste');
+            const dateInput = document.getElementById('date');
+            const heureInput = document.getElementById('heure');
+            const lieuInput = document.getElementById('lieu');
+            const prixInput = document.getElementById('prix');
+            const imageInput = document.getElementById('image');
+
+            titreInput.addEventListener('input', function() {
+                if (this.value.length < 3 && this.value.length > 0) {
+                    showError(this, 'titre-error', 'Le titre doit contenir au moins 3 caractères');
+                } else {
+                    hideError(this, 'titre-error');
+                }
+            });
+
+            artisteInput.addEventListener('input', function() {
+                if (this.value.length < 3 && this.value.length > 0) {
+                    showError(this, 'artiste-error', 'L\'artiste doit contenir au moins 3 caractères');
+                } else {
+                    hideError(this, 'artiste-error');
+                }
+            });
+
+            dateInput.addEventListener('change', function() {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const selectedDate = new Date(this.value);
+                
+                if (selectedDate < today) {
+                    showError(this, 'date-error', 'La date ne peut pas être dans le passé');
+                } else {
+                    hideError(this, 'date-error');
+                }
+            });
+
+            heureInput.addEventListener('change', function() {
+                if (!this.value) {
+                    showError(this, 'heure-error', 'Veuillez sélectionner une heure valide');
+                } else {
+                    hideError(this, 'heure-error');
+                }
+            });
+
+            lieuInput.addEventListener('input', function() {
+                if (this.value.length < 3 && this.value.length > 0) {
+                    showError(this, 'lieu-error', 'Le lieu doit contenir au moins 3 caractères');
+                } else {
+                    hideError(this, 'lieu-error');
+                }
+            });
+
+            prixInput.addEventListener('input', function() {
+                if (this.value < 0) {
+                    showError(this, 'prix-error', 'Le prix ne peut pas être négatif');
+                } else {
+                    hideError(this, 'prix-error');
+                }
+            });
+
+            imageInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    const file = this.files[0];
+                    const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                    if (!validTypes.includes(file.type)) {
+                        showError(this, 'image-error', 'Veuillez sélectionner une image valide (JPEG, PNG, GIF)');
+                    } else {
+                        hideError(this, 'image-error');
+                    }
+                }
+            });
+
+            form.addEventListener('submit', function(event) {
+                let isValid = true;
+
+                if (titreInput.value.length < 3) {
+                    showError(titreInput, 'titre-error', 'Le titre doit contenir au moins 3 caractères');
+                    isValid = false;
+                }
+
+                if (artisteInput.value.length < 3) {
+                    showError(artisteInput, 'artiste-error', 'L\'artiste doit contenir au moins 3 caractères');
+                    isValid = false;
+                }
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const selectedDate = new Date(dateInput.value);
+                if (!dateInput.value || selectedDate < today) {
+                    showError(dateInput, 'date-error', 'La date ne peut pas être dans le passé');
+                    isValid = false;
+                }
+
+                if (!heureInput.value) {
+                    showError(heureInput, 'heure-error', 'Veuillez sélectionner une heure valide');
+                    isValid = false;
+                }
+
+                if (lieuInput.value.length < 3) {
+                    showError(lieuInput, 'lieu-error', 'Le lieu doit contenir au moins 3 caractères');
+                    isValid = false;
+                }
+
+                if (prixInput.value < 0 || prixInput.value === '') {
+                    showError(prixInput, 'prix-error', 'Veuillez entrer un prix valide');
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    event.preventDefault();
+                }
+            });
+
             setTimeout(function() {
                 var successMessage = document.querySelector(".message.success");
                 if (successMessage) {
