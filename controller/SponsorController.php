@@ -1,59 +1,161 @@
 <?php
-require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../Model/Sponsor.php';
+require_once __DIR__ . '/../config/db.php';
 
 class SponsorController {
-    private $db;
-
+    private $conn;
+    
     public function __construct() {
-
-        $this->db = Database::getConnection();
+        $this->conn = Database::getConnection();
     }
-
-    public function getAll() {
-        $query = $this->db->prepare("SELECT * FROM sponsor");
-        $query->execute();
-        return $query->fetchAll();
-    }
-
-    public function getById($id) {
-        $query = $this->db->prepare("SELECT * FROM sponsor WHERE id_sponsor = ?");
-        $query->execute([$id]);
-        return $query->fetch();
-    }
-
-    public function add($cin, $entreprise, $mail, $telephone) {
-        $query = $this->db->prepare("INSERT INTO sponsor (cin, entreprise, mail, telephone) VALUES (?, ?, ?, ?)");
-        return $query->execute([$cin, $entreprise, $mail, $telephone]);
-    }
-
-    public function update($id, $cin, $entreprise, $mail, $telephone) {
-        if (!$this->exists($id)) {
-            return false;
+    
+    public function getSponsorById($id_sponsor) {
+        $query = "SELECT * FROM sponsor WHERE id_sponsor = ?";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(1, $id_sponsor, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$row) {
+            return null;
         }
-        $query = $this->db->prepare("UPDATE sponsor SET cin = ?, entreprise = ?, mail = ?, telephone = ? WHERE id_sponsor = ?");
-        return $query->execute([$cin, $entreprise, $mail, $telephone, $id]);
+        
+        $sponsor = new Sponsor();
+        $sponsor->setIdSponsor($row['id_sponsor']);
+        $sponsor->setNomSponsor($row['nom_sponsor']);
+        $sponsor->setEntreprise($row['entreprise']);
+        $sponsor->setMail($row['mail']);
+        $sponsor->setTelephone($row['telephone']);
+        
+        return $sponsor;
     }
-
-    public function delete($id) {
+    
+    public function getAllSponsors() {
+        $query = "SELECT * FROM sponsor ORDER BY nom_sponsor";
+        
+        $stmt = $this->conn->query($query);
+        $sponsors = [];
+        
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $sponsor = new Sponsor();
+            $sponsor->setIdSponsor($row['id_sponsor']);
+            $sponsor->setNomSponsor($row['nom_sponsor']);
+            $sponsor->setEntreprise($row['entreprise']);
+            $sponsor->setMail($row['mail']);
+            $sponsor->setTelephone($row['telephone']);
+            
+            $sponsors[] = $sponsor;
+        }
+        
+        return $sponsors;
+    }
+    
+    public function getSponsors() {
+        $query = "SELECT * FROM sponsor ORDER BY entreprise ASC";
+        
+        $stmt = $this->conn->query($query);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    public function deleteFront($id) {
         try {
-            $queryDemandes = $this->db->prepare("DELETE FROM demandesponsoring WHERE id_sponsor = ?");
-            $queryDemandes->execute([$id]);
-
-            $querySponsor = $this->db->prepare("DELETE FROM sponsor WHERE id_sponsor = ?");
-            if($querySponsor->execute([$id])) {
-                header('Location: ../back/sponsoring.php');
-                exit();
-            }
-            return false;
-        } catch(PDOException $e) {
+            // First, delete related sponsoring requests
+            $queryDemandes = "DELETE FROM demandesponsoring WHERE id_sponsor = ?";
+            $stmtDemandes = $this->conn->prepare($queryDemandes);
+            $stmtDemandes->bindParam(1, $id, PDO::PARAM_INT);
+            $stmtDemandes->execute();
+            
+            // Then delete the sponsor
+            $querySponsor = "DELETE FROM sponsor WHERE id_sponsor = ?";
+            $stmtSponsor = $this->conn->prepare($querySponsor);
+            $stmtSponsor->bindParam(1, $id, PDO::PARAM_INT);
+            
+            return $stmtSponsor->execute();
+        } catch (Exception $e) {
             return false;
         }
     }
-
-    public function exists($id) {
-        $query = $this->db->prepare("SELECT COUNT(*) FROM sponsor WHERE id_sponsor = ?");
-        $query->execute([$id]);
-        return $query->fetchColumn() > 0;
+    
+    public function createSponsor($nom_sponsor, $entreprise, $mail, $telephone) {
+        $query = "INSERT INTO sponsor (nom_sponsor, entreprise, mail, telephone) VALUES (?, ?, ?, ?)";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(1, $nom_sponsor, PDO::PARAM_STR);
+        $stmt->bindParam(2, $entreprise, PDO::PARAM_STR);
+        $stmt->bindParam(3, $mail, PDO::PARAM_STR);
+        $stmt->bindParam(4, $telephone, PDO::PARAM_STR);
+        
+        if ($stmt->execute()) {
+            return $this->conn->lastInsertId();
+        }
+        
+        return false;
+    }
+    
+    public function updateSponsor($id_sponsor, $nom_sponsor, $entreprise, $mail, $telephone) {
+        $query = "UPDATE sponsor SET nom_sponsor = ?, entreprise = ?, mail = ?, telephone = ? WHERE id_sponsor = ?";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(1, $nom_sponsor, PDO::PARAM_STR);
+        $stmt->bindParam(2, $entreprise, PDO::PARAM_STR);
+        $stmt->bindParam(3, $mail, PDO::PARAM_STR);
+        $stmt->bindParam(4, $telephone, PDO::PARAM_STR);
+        $stmt->bindParam(5, $id_sponsor, PDO::PARAM_INT);
+        
+        return $stmt->execute();
+    }
+    
+    // Adding updateFront method needed by the application
+    public function updateFront($id, $nom_sponsor, $entreprise, $mail, $telephone) {
+        try {
+            $query = "UPDATE sponsor SET nom_sponsor = ?, entreprise = ?, mail = ?, telephone = ? WHERE id_sponsor = ?";
+            
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(1, $nom_sponsor, PDO::PARAM_STR);
+            $stmt->bindParam(2, $entreprise, PDO::PARAM_STR);
+            $stmt->bindParam(3, $mail, PDO::PARAM_STR);
+            $stmt->bindParam(4, $telephone, PDO::PARAM_STR);
+            $stmt->bindParam(5, $id, PDO::PARAM_INT);
+            
+            return $stmt->execute();
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+    
+    public function deleteSponsor($id_sponsor) {
+        $query = "DELETE FROM sponsor WHERE id_sponsor = ?";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(1, $id_sponsor, PDO::PARAM_INT);
+        
+        return $stmt->execute();
+    }
+    
+    public function getSponsorsByNameOrCompany($search) {
+        $search = "%$search%";
+        $query = "SELECT * FROM sponsor WHERE nom_sponsor LIKE ? OR entreprise LIKE ? ORDER BY nom_sponsor";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(1, $search, PDO::PARAM_STR);
+        $stmt->bindParam(2, $search, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $sponsors = [];
+        
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $sponsor = new Sponsor();
+            $sponsor->setIdSponsor($row['id_sponsor']);
+            $sponsor->setNomSponsor($row['nom_sponsor']);
+            $sponsor->setEntreprise($row['entreprise']);
+            $sponsor->setMail($row['mail']);
+            $sponsor->setTelephone($row['telephone']);
+            
+            $sponsors[] = $sponsor;
+        }
+        
+        return $sponsors;
     }
 }

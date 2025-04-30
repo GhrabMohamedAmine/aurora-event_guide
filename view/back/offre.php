@@ -404,9 +404,14 @@ $demandes = $controller->getAll();
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 class="table-title">Liste des Demandes de Sponsoring</h3>
-                <a href="ajouter_demande.php" class="btn btn-add">
-                    <i class="fas fa-plus"></i> Nouvelle Demande
-                </a>
+                <div style="display: flex; gap: 10px;">
+                    <a href="sponsoring.php" class="btn" style="background-color: #6a0dad;">
+                        <i class="fas fa-users"></i> Gérer les Sponsors
+                    </a>
+                    <a href="ajouter_demande.php" class="btn btn-add">
+                        <i class="fas fa-plus"></i> Nouvelle Demande
+                    </a>
+                </div>
             </div>
 
             <table class="data-table">
@@ -451,5 +456,33 @@ $demandes = $controller->getAll();
             </table>
         </div>
     </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.querySelector('.search-bar input');
+            const tableRows = document.querySelectorAll('.data-table tbody tr');
+            
+            searchInput.addEventListener('keyup', function() {
+                const searchTerm = searchInput.value.toLowerCase();
+                
+                tableRows.forEach(row => {
+                    let rowVisible = false;
+                    const cells = row.querySelectorAll('td');
+                    
+                    cells.forEach(cell => {
+                        if (cell.textContent.toLowerCase().includes(searchTerm)) {
+                            rowVisible = true;
+                        }
+                    });
+                    
+                    if (rowVisible) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1,8 +1,70 @@
 <?php
 require_once __DIR__.'/../../config/db.php';
 require_once __DIR__.'/../../controller/DemandeSponsoringController.php';
+require_once __DIR__.'/../../controller/SponsorController.php';
 
 $controller = new DemandeSponsoringController();
+$sponsorController = new SponsorController();
+
+// Ajout du bouton de navigation vers offre.php
+echo '<div style="position: fixed; top: 20px; left: 20px; z-index: 1000;">
+        <a href="../back/offre.php" class="nav-button" id="offre-nav-btn" style="display: flex; align-items: center; gap: 8px; 
+           background: linear-gradient(135deg, #6a0dad 0%, #4b0082 100%); color: white; 
+           padding: 10px 16px; border-radius: 50px; text-decoration: none; font-weight: 600;
+           font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+           transition: all 0.3s ease;">
+           <i class="fas fa-list-alt"></i> Gérer les Demandes de Sponsoring
+        </a>
+      </div>
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const navBtn = document.getElementById("offre-nav-btn");
+            navBtn.addEventListener("mouseover", function() {
+                this.style.transform = "translateY(-3px)";
+                this.style.boxShadow = "0 6px 15px rgba(106, 13, 173, 0.4)";
+            });
+            navBtn.addEventListener("mouseout", function() {
+                this.style.transform = "translateY(0)";
+                this.style.boxShadow = "0 4px 10px rgba(0,0,0,0.2)";
+            });
+        });
+      </script>';
+
+// Traitement de la suppression
+if (isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['id'])) {
+    $id = $_POST['id'];
+    if ($sponsorController->deleteFront($id)) {
+        header('Location: front.php?delete_success=1');
+        exit();
+    } else {
+        header('Location: front.php?delete_error=1');
+        exit();
+    }
+}
+
+if (isset($_GET['success']) && $_GET['success'] == 1) {
+    echo '<div style="position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px; border-radius: 5px; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <i class="fas fa-check-circle"></i> Sponsor ajouté avec succès!
+          </div>';
+}
+
+if (isset($_GET['update_success']) && $_GET['update_success'] == 1) {
+    echo '<div style="position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px; border-radius: 5px; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <i class="fas fa-check-circle"></i> Sponsor modifié avec succès!
+          </div>';
+}
+
+if (isset($_GET['delete_success']) && $_GET['delete_success'] == 1) {
+    echo '<div style="position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px; border-radius: 5px; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <i class="fas fa-check-circle"></i> Sponsor supprimé avec succès!
+          </div>';
+}
+
+if (isset($_GET['delete_error']) && $_GET['delete_error'] == 1) {
+    echo '<div style="position: fixed; top: 20px; right: 20px; background: #dc3545; color: white; padding: 15px; border-radius: 5px; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <i class="fas fa-exclamation-circle"></i> Erreur lors de la suppression du sponsor.
+          </div>';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -12,13 +74,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['montant'],
             $_POST['idevent']
         );
-        
+
         if ($result) {
-            header('Location: front.php');
-            exit;
+            echo '<div style="color: green;">Demande enregistrée avec succès.</div>';
+        } else {
+            echo '<div style="color: red;">Erreur lors de l\'enregistrement de la demande.</div>';
         }
     } catch (Exception $e) {
-        $error = $e->getMessage();
+        echo '<div style="color: red;">Erreur: ' . htmlspecialchars($e->getMessage()) . '</div>';
     }
 }
 ?>
@@ -30,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Demande de Sponsoring - Aroura event</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/dashboard.css">
     <style>
         :root {
             --primary-color: #6a0dad; /* Violet principal */
@@ -128,32 +192,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .btn {
-            background-color: var(--secondary-color);
-            color: var(--dark-purple);
-            border: none;
+            display: inline-flex;
+            align-items: center;
             padding: 12px 25px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-            font-size: 1rem;
+            border-radius: 50px;
             text-decoration: none;
-            display: inline-block;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         
-        .btn:hover {
-            background-color: #c19c00;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        .btn i {
+            margin-right: 10px;
         }
         
         .btn-purple {
-            background-color: var(--primary-color);
+            background: linear-gradient(to right, var(--primary-color), var(--dark-purple));
             color: white;
+            border: none;
         }
         
         .btn-purple:hover {
-            background-color: var(--dark-purple);
+            background: linear-gradient(to right, var(--dark-purple), var(--primary-color));
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(106, 13, 173, 0.3);
         }
         
         .btn-outline {
@@ -458,111 +520,185 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin: 0;
         }
         
-        .tabs {
+        .dashboard-tabs {
             display: flex;
-            border-bottom: 1px solid #eee;
+            gap: 10px;
             margin-bottom: 30px;
+            border-bottom: 2px solid var(--light-purple);
+            padding-bottom: 10px;
         }
-        
-        .tab {
-            padding: 10px 20px;
+
+        .tab-button {
+            padding: 12px 25px;
+            border: none;
+            background: none;
+            color: var(--dark-gray);
+            font-weight: 600;
             cursor: pointer;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            position: relative;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        
-        .tab.active {
-            border-bottom-color: var(--primary-color);
+
+        .tab-button i {
+            font-size: 18px;
+        }
+
+        .tab-button:after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary-color);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .tab-button:hover {
             color: var(--primary-color);
-            font-weight: bold;
         }
-        
-        .tab:hover:not(.active) {
-            border-bottom-color: var(--light-purple);
+
+        .tab-button.active {
+            color: var(--primary-color);
         }
-        
+
+        .tab-button.active:after {
+            transform: scaleX(1);
+        }
+
         .tab-content {
             display: none;
+            animation: fadeIn 0.5s ease;
         }
-        
+
         .tab-content.active {
             display: block;
         }
-        
-        .sponsors-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
-        .sponsor-item {
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .stat-card h4 {
+            color: var(--dark-gray);
+            margin: 10px 0;
+            font-size: 1.2rem;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .messages-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .message-item {
+            padding: 20px;
+            border-bottom: 1px solid var(--light-gray);
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .message-item:last-child {
+            border-bottom: none;
+        }
+
+        .message-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--light-purple);
             display: flex;
             align-items: center;
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            transition: all 0.3s;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
         }
-        
-        .sponsor-item:hover {
-            background: var(--light-gray);
-        }
-        
-        .sponsor-logo {
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-            margin-right: 20px;
-            background: white;
-            padding: 5px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        .sponsor-info {
+
+        .message-content {
             flex: 1;
         }
-        
-        .sponsor-name {
-            margin: 0 0 5px;
-            color: var(--primary-color);
-        }
-        
-        .sponsor-package {
-            font-size: 0.9rem;
-            color: var(--dark-gray);
-        }
-        
-        .sponsor-actions {
+
+        .message-header {
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
+            margin-bottom: 5px;
         }
-        
-        .action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
+
+        .message-sender {
+            font-weight: 600;
             color: var(--dark-gray);
-            transition: all 0.3s;
-            padding: 5px;
         }
-        
-        .action-btn.edit:hover {
-            color: var(--primary-color);
+
+        .message-date {
+            color: #666;
+            font-size: 0.9rem;
         }
-        
-        .action-btn.delete:hover {
-            color: #e74c3c;
+
+        .message-text {
+            color: var(--dark-gray);
+            line-height: 1.5;
         }
-        
+
         .empty-state {
             text-align: center;
-            padding: 50px;
+            padding: 40px 20px;
             color: var(--dark-gray);
         }
-        
+
         .empty-state i {
             font-size: 3rem;
             color: var(--light-purple);
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            margin: 10px 0;
+            font-size: 1.5rem;
+        }
+
+        .empty-state p {
+            color: #666;
             margin-bottom: 20px;
         }
         
@@ -828,6 +964,225 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 width: 100%;
             }
         }
+        
+        .sponsorships-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .sponsorship-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(106, 13, 173, 0.1);
+            padding: 25px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(106, 13, 173, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sponsorship-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(106, 13, 173, 0.2);
+        }
+        
+        .sponsorship-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+        }
+
+        .sponsorship-header {
+            border-bottom: 2px solid rgba(106, 13, 173, 0.1);
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            position: relative;
+        }
+
+        .sponsorship-header h4 {
+            margin: 0;
+            color: var(--dark-purple);
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .sponsorship-details p {
+            margin: 12px 0;
+            color: var(--dark-gray);
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .sponsorship-details strong {
+            color: var(--primary-color);
+            display: inline-block;
+            width: 100px;
+        }
+        
+        .sponsorship-details p i {
+            margin-right: 10px;
+            color: var(--secondary-color);
+            font-size: 1.1rem;
+        }
+
+        .sponsor-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            border-top: 1px solid rgba(106, 13, 173, 0.1);
+            padding-top: 15px;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 50px;
+            margin-left: 10px;
+        }
+
+        .action-btn.edit {
+            color: var(--primary-color);
+            background-color: rgba(106, 13, 173, 0.1);
+        }
+
+        .action-btn.delete {
+            color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-3px);
+        }
+        
+        .action-btn.edit:hover {
+            background-color: rgba(106, 13, 173, 0.2);
+        }
+        
+        .action-btn.delete:hover {
+            background-color: rgba(220, 53, 69, 0.2);
+        }
+        
+        .tab-content#sponsorships h3 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--secondary-color);
+            display: inline-block;
+        }
+        
+        .no-sponsors-message {
+            text-align: center;
+            padding: 40px 20px;
+            background-color: rgba(106, 13, 173, 0.05);
+            border-radius: 10px;
+            color: var(--dark-gray);
+            font-size: 1.1rem;
+        }
+        
+        .no-sponsors-message i {
+            display: block;
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Confirmation Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 0;
+            overflow: hidden;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            position: relative;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+
+        .modal-body {
+            padding: 25px;
+            font-size: 1.1rem;
+            color: var(--dark-gray);
+        }
+
+        .modal-footer {
+            padding: 15px 25px 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-cancel {
+            background-color: #f1f1f1;
+            color: var(--dark-gray);
+        }
+
+        .modal-btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-3px);
+        }
+
+        .modal-btn-cancel:hover {
+            background-color: #e5e5e5;
+        }
+
+        .modal-btn-delete:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -879,7 +1234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <li><i class="fas fa-check"></i> Reportage vidéo dédié sur nos réseaux</li>
                         </ul>
                         <div class="package-actions">
-                            <a href="#request-form" class="btn btn-purple">Choisir cette offre</a>
+                            <a href="#request-form" class="btn btn-purple" data-price="15000" data-package="Platine">Choisir cette offre</a>
                         </div>
                     </div>
                 </div>
@@ -901,7 +1256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <li><i class="fas fa-check"></i> Article sponsorisé sur notre blog</li>
                         </ul>
                         <div class="package-actions">
-                            <a href="#request-form" class="btn btn-purple">Choisir cette offre</a>
+                            <a href="#request-form" class="btn btn-purple" data-price="8000" data-package="Or">Choisir cette offre</a>
                         </div>
                     </div>
                 </div>
@@ -922,7 +1277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <li><i class="fas fa-check"></i> Post sponsorisé sur les réseaux sociaux</li>
                         </ul>
                         <div class="package-actions">
-                            <a href="#request-form" class="btn btn-purple">Choisir cette offre</a>
+                            <a href="#request-form" class="btn btn-purple" data-price="5000" data-package="Argent">Choisir cette offre</a>
                         </div>
                     </div>
                 </div>
@@ -976,60 +1331,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         
         <!-- ROI Calculator -->
-        <div class="calculator-section">
-            <h2 class="section-title">Calculateur de ROI</h2>
-            <p style="text-align: center; max-width: 800px; margin: 0 auto 30px;">Estimez le retour sur investissement que vous pourriez obtenir en devenant sponsor de notre événement.</p>
-            
-            <div class="calculator-grid">
-                <div>
-                    <div class="form-group">
-                        <label for="investment">Montant investi (€)</label>
-                        <input type="range" id="investment" min="5000" max="30000" step="1000" value="15000" class="form-control">
-                        <div style="text-align: center; margin-top: 5px;" id="investmentValue">15 000 €</div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="sector">Secteur d'activité</label>
-                        <select id="sector" class="form-control">
-                            <option value="luxe">Luxe & Premium</option>
-                            <option value="tech">Technologie</option>
-                            <option value="finance">Finance & Banque</option>
-                            <option value="automobile">Automobile</option>
-                            <option value="autre">Autre</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="objective">Objectif principal</label>
-                        <select id="objective" class="form-control">
-                            <option value="visibilite">Augmenter la visibilité</option>
-                            <option value="leads">Générer des leads</option>
-                            <option value="image">Améliorer l'image de marque</option>
-                            <option value="reseau">Développer son réseau</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="calculator-results">
-                    <div class="result-item">
-                        <div class="result-label">Contacts Qualifiés Estimés</div>
-                        <div class="result-value">120-180</div>
-                    </div>
-                    
-                    <div class="result-item">
-                        <div class="result-label">Couverture Média Équivalente</div>
-                        <div class="result-value">45 000 €</div>
-                    </div>
-                    
-                    <div class="result-item">
-                        <div class="result-label">ROI Estimé (12 mois)</div>
-                        <div class="result-value positive">+215%</div>
-                    </div>
-                    
-                    <button class="btn" style="align-self: center; margin-top: 20px;">Obtenir une Analyse Complète</button>
-                </div>
-            </div>
-        </div>
+        <?php include 'sponsor-dashboard.php'; ?>
         
         <!-- Media Coverage -->
         <div class="media-section">
@@ -1124,171 +1426,174 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
             
-            <div class="tabs">
-                <div class="tab active" data-tab="my-sponsorships">Mes Sponsorships</div>
-                <div class="tab" data-tab="my-requests">Mes Demandes</div>
-                <div class="tab" data-tab="messages">Messagerie</div>
-                <div class="tab" data-tab="stats">Statistiques</div>
+            <div class="dashboard-tabs">
+                <button class="tab-button active" onclick="showTab('sponsorships')">
+                    <i class="fas fa-handshake"></i> Mes Sponsorships
+                </button>
+                <button class="tab-button" onclick="showTab('messages')">
+                    <i class="fas fa-envelope"></i> Messages
+                </button>
+                <button class="tab-button" onclick="showTab('stats')">
+                    <i class="fas fa-chart-bar"></i> Statistiques
+                </button>
             </div>
             
-            <div class="tab-content active" id="my-sponsorships">
-                <h3>Mes Sponsors Actifs</h3>
-                <ul class="sponsors-list">
-                    <li class="sponsor-item">
-                        <img src="https://via.placeholder.com/60?text=LB" alt="Luxury Brand" class="sponsor-logo">
-                        <div class="sponsor-info">
-                            <h4 class="sponsor-name">Luxury Brand</h4>
-                            <p class="sponsor-package">Package Platine - Édition 2023</p>
-                        </div>
-                        <div class="sponsor-actions">
-                            <button class="action-btn edit" title="Modifier"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn delete" title="Supprimer"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </li>
-                    <li class="sponsor-item">
-                        <img src="https://via.placeholder.com/60?text=TC" alt="Tech Corp" class="sponsor-logo">
-                        <div class="sponsor-info">
-                            <h4 class="sponsor-name">Tech Corp</h4>
-                            <p class="sponsor-package">Package Or - Édition 2022</p>
-                        </div>
-                        <div class="sponsor-actions">
-                            <button class="action-btn edit" title="Modifier"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn delete" title="Supprimer"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </li>
-                </ul>
-                
-                <div style="text-align: center; margin-top: 30px;">
-                    <button class="btn btn-purple"><i class="fas fa-plus"></i> Ajouter un Nouveau Sponsor</button>
+            <div class="tab-content active" id="sponsorships">
+                <h3>Mes Sponsorships</h3>
+                <div class="sponsorships-grid">
+                    <?php
+                    $sponsors = $sponsorController->getSponsors();
+                    if (!empty($sponsors)) {
+                        foreach ($sponsors as $sponsor) {
+                            echo '<div class="sponsorship-card">';
+                            echo '<div class="sponsorship-header">';
+                            echo '<h4>' . htmlspecialchars($sponsor['entreprise']) . '</h4>';
+                            echo '</div>';
+                            echo '<div class="sponsorship-details">';
+                            echo '<p><i class="fas fa-envelope"></i><strong>Email:</strong> ' . htmlspecialchars($sponsor['mail']) . '</p>';
+                            echo '<p><i class="fas fa-phone"></i><strong>Téléphone:</strong> ' . htmlspecialchars($sponsor['telephone']) . '</p>';
+                            echo '</div>';
+                            echo '<div class="sponsor-actions">';
+                            echo '<a href="edit_sponsor_front.php?id=' . $sponsor['id_sponsor'] . '" class="action-btn edit" title="Modifier"><i class="fas fa-edit"></i></a>';
+                            echo '<button class="action-btn delete" title="Supprimer" onclick="confirmDelete(' . $sponsor['id_sponsor'] . ')"><i class="fas fa-trash"></i></button>';
+                            echo '</div>';
+                            echo '</div>';
+                        }
+                    } else {
+                        echo '<div class="no-sponsors-message">';
+                        echo '<i class="fas fa-handshake"></i>';
+                        echo 'Aucun sponsorship trouvé. Commencez à ajouter des sponsors pour les voir apparaître ici.';
+                        echo '</div>';
+                    }
+                    ?>
                 </div>
-            </div>
-            
-            <div class="tab-content" id="my-requests">
-                <h3>Mes Demandes en Cours</h3>
-                <ul class="sponsors-list">
-                    <li class="sponsor-item">
-                        <div class="sponsor-info">
-                            <h4 class="sponsor-name">Demande #ER2024-056</h4>
-                            <p class="sponsor-package">Package Platine - En attente de validation</p>
-                            <p><small>Soumis le 15/04/2023</small></p>
-                        </div>
-                        <div class="sponsor-actions">
-                            <button class="action-btn edit" title="Voir"><i class="fas fa-eye"></i></button>
-                        </div>
-                    </li>
-                    <li class="sponsor-item">
-                        <div class="sponsor-info">
-                            <h4 class="sponsor-name">Demande #ER2023-128</h4>
-                            <p class="sponsor-package">Package Personnalisé - Acceptée</p>
-                            <p><small>Soumis le 22/11/2022</small></p>
-                        </div>
-                        <div class="sponsor-actions">
-                            <button class="action-btn edit" title="Voir"><i class="fas fa-eye"></i></button>
-                        </div>
-                    </li>
-                </ul>
-                
-                <div class="empty-state">
-                    <i class="fas fa-paper-plane"></i>
-                    <h3>Prêt à devenir sponsor ?</h3>
-                    <p>Envoyez une nouvelle demande de sponsoring et rejoignez nos partenaires prestigieux.</p>
-                    <a href="#request-form" class="btn btn-purple">Nouvelle Demande</a>
+                <div style="text-align: center; margin-top: 50px;">
+                    <a href="add_sponsor_front.php" class="btn btn-purple"><i class="fas fa-plus"></i> Ajouter un Nouveau Sponsor</a>
                 </div>
             </div>
             
             <div class="tab-content" id="messages">
-                <h3>Messagerie Sponsors</h3>
-                
+                <h3><i class="fas fa-envelope"></i> Messagerie Sponsors</h3>
                 <div class="messages-container">
-                    <div class="conversations-list">
-                        <div class="conversation-header">Conversations</div>
-                        <div class="conversation-item active">
-                            <h4 class="conversation-name">Équipe Événement Royal</h4>
-                            <p class="conversation-preview">Bonjour, nous avons bien reçu votre demande...</p>
-                        </div>
-                        <div class="conversation-item">
-                            <h4 class="conversation-name">Service Marketing</h4>
-                            <p class="conversation-preview">Votre logo a été ajouté à nos supports...</p>
-                        </div>
-                        <div class="conversation-item">
-                            <h4 class="conversation-name">Service Partenariats</h4>
-                            <p class="conversation-preview">Nous préparons votre espace pour l'événement...</p>
-                        </div>
-                    </div>
+                    <?php 
+                    require_once __DIR__ . '/../../Controller/MessengerController.php';
+                    $messengerController = new MessengerController();
                     
-                    <div class="message-area">
-                        <div class="message-header">
-                            <h4>Équipe Événement Royal</h4>
-                            <button class="btn" style="padding: 5px 10px; font-size: 0.8rem;">
-                                <i class="fas fa-phone"></i> Appeler
-                            </button>
-                        </div>
-                        
-                        <div class="message-list">
-                            <div class="message received">
-                                <div class="message-content">
-                                    Bonjour, nous avons bien reçu votre demande de sponsoring pour l'édition 2023. Nous sommes ravis de votre intérêt !
+                    // Static user ID as requested
+                    $user_id = 456;
+                    
+                    // Get all conversations for the user
+                    $conversations = $messengerController->getConversationsForUser($user_id);
+                    
+                    // Get unread count
+                    $unreadCount = $messengerController->getUnreadCount($user_id);
+                    ?>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-4">
+                            <div class="card shadow-sm border-0">
+                                <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center py-3">
+                                    <h5 class="mb-0 font-weight-bold"><i class="fas fa-comment-dots mr-2"></i> Vos messages</h5>
+                                    <a href="/chedliss/view/front/messenger.php" class="btn btn-light btn-sm rounded-pill px-3 d-flex align-items-center">
+                                        <i class="fas fa-comment-dots mr-2"></i> Messagerie complète
+                                        <?php if ($unreadCount > 0): ?>
+                                            <span class="badge badge-danger ml-2 rounded-circle"><?php echo $unreadCount; ?></span>
+                                        <?php endif; ?>
+                                    </a>
                                 </div>
-                                <div class="message-time">15/04/2023 10:23</div>
-                            </div>
-                            
-                            <div class="message sent">
-                                <div class="message-content">
-                                    Merci pour votre réponse rapide. Pourriez-vous nous indiquer les prochaines étapes ?
+                                <div class="card-body p-0">
+                                    <?php if (empty($conversations)): ?>
+                                        <div class="text-center py-5">
+                                            <div class="mb-4">
+                                                <i class="fas fa-comments fa-4x text-muted opacity-50"></i>
+                                            </div>
+                                            <h5 class="text-muted">Aucune conversation récente</h5>
+                                            <p class="text-muted small mb-4">Commencez à communiquer avec vos sponsors</p>
+                                            <a href="/chedliss/view/front/messenger.php" class="btn btn-primary px-4 rounded-pill">
+                                                <i class="fas fa-plus-circle mr-2"></i> Démarrer une nouvelle conversation
+                                            </a>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="message-list">
+                                            <?php foreach (array_slice($conversations, 0, 3) as $conversation): ?>
+                                                <a href="/chedliss/view/front/messenger.php?sponsor=<?php echo $conversation['id_sponsor']; ?>" class="message-item p-3 d-flex align-items-center border-bottom transition">
+                                                    <div class="avatar-wrapper mr-3">
+                                                        <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center">
+                                                            <i class="fas fa-building"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div class="message-content flex-grow-1">
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <h6 class="mb-0 font-weight-bold"><?php echo htmlspecialchars($conversation['nom_sponsor']); ?></h6>
+                                                            <small class="text-muted">
+                                                                <?php 
+                                                                $date = new DateTime($conversation['last_message_date']);
+                                                                echo $date->format('d/m/Y'); 
+                                                                ?>
+                                                            </small>
+                                                        </div>
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <p class="mb-0 text-muted small text-truncate"><?php echo htmlspecialchars($conversation['entreprise']); ?></p>
+                                                            <?php if ($conversation['unread_count'] > 0): ?>
+                                                                <span class="badge badge-primary badge-pill ml-2">
+                                                                    <?php echo $conversation['unread_count']; ?>
+                                                                </span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <?php if (count($conversations) > 3): ?>
+                                            <div class="text-center py-3 border-top">
+                                                <a href="/chedliss/view/front/messenger.php" class="text-primary font-weight-bold">
+                                                    <i class="fas fa-chevron-right mr-1"></i> Voir toutes les conversations
+                                                </a>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </div>
-                                <div class="message-time">15/04/2023 11:45</div>
                             </div>
-                            
-                            <div class="message received">
-                                <div class="message-content">
-                                    Bien sûr. Notre responsable partenariats vous contactera dans les 48h pour discuter des modalités et répondre à vos questions.
-                                </div>
-                                <div class="message-time">15/04/2023 14:12</div>
-                            </div>
-                        </div>
-                        
-                        <div class="message-input-area">
-                            <textarea class="message-input" placeholder="Écrivez votre message..."></textarea>
-                            <button class="send-btn"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
                 </div>
             </div>
             
             <div class="tab-content" id="stats">
-                <h3>Statistiques de Performance</h3>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
-                    <div style="background: var(--light-gray); padding: 20px; border-radius: 10px;">
-                        <h4 style="color: var(--primary-color); margin-top: 0;">Visibilité</h4>
-                        <div style="height: 200px; background: white; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
-                            [Graphique des impressions]
-                        </div>
-                        <p><strong>1.2M</strong> impressions totales</p>
-                        <p><strong>45%</strong> au-dessus de la moyenne sectorielle</p>
+                <h3><i class="fas fa-chart-bar"></i> Statistiques de Performance</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-eye"></i>
+                        <h4>Vues du Profil</h4>
+                        <div class="value">1,234</div>
+                        <p class="trend positive"><i class="fas fa-arrow-up"></i> +12% ce mois</p>
                     </div>
-                    
-                    <div style="background: var(--light-gray); padding: 20px; border-radius: 10px;">
-                        <h4 style="color: var(--primary-color); margin-top: 0;">Engagement</h4>
-                        <div style="height: 200px; background: white; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
-                            [Graphique des interactions]
-                        </div>
-                        <p><strong>3,450</strong> leads générés</p>
-                        <p><strong>28%</strong> de taux de conversion</p>
+                    <div class="stat-card">
+                        <i class="fas fa-handshake"></i>
+                        <h4>Sponsorships Actifs</h4>
+                        <div class="value">3</div>
+                        <p class="trend">En cours</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-chart-line"></i>
+                        <h4>Taux d'Engagement</h4>
+                        <div class="value">8.5%</div>
+                        <p class="trend positive"><i class="fas fa-arrow-up"></i> +2.3%</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-calendar-check"></i>
+                        <h4>Événements Sponsorisés</h4>
+                        <div class="value">5</div>
+                        <p class="trend">Cette année</p>
                     </div>
                 </div>
-                
-                <div style="background: var(--light-gray); padding: 20px; border-radius: 10px; margin-top: 30px;">
-                    <h4 style="color: var(--primary-color); margin-top: 0;">ROI Estimé</h4>
-                    <div style="display: flex; align-items: center; gap: 30px;">
-                        <div style="flex: 1; height: 150px; background: white; display: flex; align-items: center; justify-content: center;">
-                            [Graphique ROI]
-                        </div>
-                        <div style="flex: 1;">
-                            <p><strong>215%</strong> de retour sur investissement</p>
-                            <p><strong>6.2 mois</strong> pour atteindre le seuil de rentabilité</p>
-                            <p><strong>45 000 €</strong> de valeur médiatique équivalente</p>
-                        </div>
+
+                <div class="stats-chart-container" style="margin-top: 40px;">
+                    <h4><i class="fas fa-chart-area"></i> Évolution des Interactions</h4>
+                    <div class="empty-state">
+                        <i class="fas fa-chart-bar"></i>
+                        <h3>Statistiques en cours de collecte</h3>
+                        <p>Les données détaillées seront disponibles prochainement.</p>
                     </div>
                 </div>
             </div>
@@ -1299,7 +1604,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p style="text-align: center; max-width: 800px; margin: 0 auto 30px;">Remplissez ce formulaire pour devenir sponsor et notre équipe vous contactera dans les plus brefs délais pour finaliser votre partenariat.</p>
             
             <div class="form-container">
-            <form method="POST" id="demandeForm" onsubmit="return validateForm(event)">
+            <form method="POST" id="demandeForm">
                 <?php if (isset($error)): ?>
                     <div class="alert alert-danger" style="color: red; margin-bottom: 15px;">
                         <?php echo htmlspecialchars($error); ?>
@@ -1335,32 +1640,157 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
     <script>
-    function validateForm(event) {
-        event.preventDefault();
-        let errors = [];
-        
-        const id_sponsor = document.getElementById('id_sponsor').value.trim();
-        const id_organisateur = document.getElementById('id_organisateur').value.trim();
-        const montant = document.getElementById('montant').value.trim();
-        const idevent = document.getElementById('idevent').value.trim();
-        
-        if (!id_sponsor) errors.push("L'ID du sponsor est requis");
-        if (!id_organisateur) errors.push("L'ID de l'organisateur est requis");
-        if (!montant) errors.push("Le montant est requis");
-        if (!idevent) errors.push("L'ID de l'événement est requis");
-        
-        if (isNaN(montant)) {
-            errors.push("Le montant doit être un nombre");
-            return false;
+    // Fonction pour valider un champ
+    function validateField(field, rules) {
+        const value = field.value.trim();
+        let error = null;
+
+        // Vérification si le champ est requis
+        if (rules.required && !value) {
+            error = rules.requiredMessage || "Ce champ est requis";
+        } 
+        // Vérification de format avec regex
+        else if (value && rules.pattern && !rules.pattern.test(value)) {
+            error = rules.patternMessage || "Format invalide";
         }
-        
-        if (errors.length > 0) {
-            alert(errors.join('\n'));
-            return false;
+        // Vérification de valeur minimale pour les nombres
+        else if (value && rules.min !== undefined && parseFloat(value) < rules.min) {
+            error = rules.minMessage || `La valeur doit être au moins ${rules.min}`;
         }
-        
-        return true;
+
+        // Récupérer ou créer le conteneur d'erreur
+        let errorContainer = field.nextElementSibling;
+        if (!errorContainer || !errorContainer.classList.contains('validation-error')) {
+            errorContainer = document.createElement('div');
+            errorContainer.className = 'validation-error';
+            errorContainer.style.color = '#dc3545';
+            errorContainer.style.fontSize = '0.85rem';
+            errorContainer.style.marginTop = '5px';
+            errorContainer.style.transition = 'all 0.3s ease';
+            field.parentNode.insertBefore(errorContainer, field.nextSibling);
+        }
+
+        // Ajouter ou supprimer le message d'erreur
+        if (error) {
+            errorContainer.textContent = error;
+            errorContainer.style.opacity = '1';
+            errorContainer.style.height = 'auto';
+            field.style.borderColor = '#dc3545';
+            field.style.backgroundColor = '#fff8f8';
+            return false;
+        } else {
+            errorContainer.style.opacity = '0';
+            errorContainer.style.height = '0';
+            field.style.borderColor = '#28a745';
+            field.style.backgroundColor = '#f8fff8';
+            return true;
+        }
     }
+
+    // Définir les règles de validation pour chaque champ
+    const validationRules = {
+        id_sponsor: {
+            required: true,
+            requiredMessage: "L'ID du sponsor est requis",
+            pattern: /^[0-9]+$/,
+            patternMessage: "L'ID du sponsor doit être un nombre entier valide"
+        },
+        id_organisateur: {
+            required: true,
+            requiredMessage: "L'ID de l'organisateur est requis",
+            pattern: /^[0-9]+$/,
+            patternMessage: "L'ID de l'organisateur doit être un nombre entier valide"
+        },
+        montant: {
+            required: true,
+            requiredMessage: "Le montant est requis",
+            min: 0.01,
+            minMessage: "Le montant doit être supérieur à 0"
+        },
+        idevent: {
+            required: true,
+            requiredMessage: "L'ID de l'événement est requis",
+            pattern: /^[0-9]+$/,
+            patternMessage: "L'ID de l'événement doit être un nombre entier valide"
+        }
+    };
+
+    // Ajouter une classe CSS pour le style des champs du formulaire
+    const style = document.createElement('style');
+    style.textContent = `
+        .form-control.validated {
+            transition: all 0.3s ease;
+        }
+        .form-group {
+            position: relative;
+        }
+        .validation-error {
+            overflow: hidden;
+        }
+        .form-control:focus {
+            box-shadow: none;
+            outline: none;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Initialiser la validation en temps réel
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('demandeForm');
+        const fields = form.querySelectorAll('input');
+        
+        // Configurer la validation en temps réel pour chaque champ
+        fields.forEach(field => {
+            const rules = validationRules[field.id];
+            if (rules) {
+                field.classList.add('validated');
+                
+                // Validation à la perte de focus (meilleure expérience utilisateur)
+                field.addEventListener('blur', function() {
+                    validateField(field, rules);
+                });
+                
+                // Validation pendant la saisie après le premier blur
+                field.addEventListener('input', function() {
+                    if (field.dataset.touched === 'true') {
+                        validateField(field, rules);
+                    }
+                });
+                
+                // Marquer le champ comme touché au blur
+                field.addEventListener('blur', function() {
+                    field.dataset.touched = 'true';
+                });
+            }
+        });
+        
+        // Validation du formulaire à la soumission
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            let formIsValid = true;
+            
+            // Valider tous les champs
+            fields.forEach(field => {
+                const rules = validationRules[field.id];
+                if (rules) {
+                    const isFieldValid = validateField(field, rules);
+                    formIsValid = formIsValid && isFieldValid;
+                }
+            });
+            
+            // Soumettre le formulaire si tout est valide
+            if (formIsValid) {
+                this.submit();
+            } else {
+                // Faire défiler jusqu'au premier champ invalide
+                const firstInvalidField = form.querySelector('input[style*="border-color: rgb(220, 53, 69)"]');
+                if (firstInvalidField) {
+                    firstInvalidField.focus();
+                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+    });
     </script>
 
     <script>
@@ -1441,5 +1871,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Investment slider initial value
         investmentValue.textContent = new Intl.NumberFormat('fr-FR').format(investmentSlider.value) + ' €';
     </script>
+    <script>
+    function confirmDelete(id) {
+        // Show the modal
+        const modal = document.getElementById('confirmationModal');
+        modal.style.display = 'flex';
+        
+        // Set up the event listeners
+        document.getElementById('cancelDelete').onclick = function() {
+            modal.style.display = 'none';
+        };
+        
+        document.getElementById('confirmDelete').onclick = function() {
+            // Create the form for submission
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '';
+
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'delete';
+
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'id';
+            idInput.value = id;
+
+            form.appendChild(actionInput);
+            form.appendChild(idInput);
+            document.body.appendChild(form);
+            form.submit();
+        };
+        
+        // Close when clicking outside the modal
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+    }
+    </script>
+
+    <script>
+        // Add this code to handle auto-filling the form when package is selected
+        document.addEventListener('DOMContentLoaded', function() {
+            const packageButtons = document.querySelectorAll('.btn[data-price]');
+            
+            packageButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    const price = this.getAttribute('data-price');
+                    const packageName = this.getAttribute('data-package');
+                    
+                    // Set the amount in the form
+                    document.getElementById('montant').value = price;
+                    
+                    // Scroll to the form
+                    document.querySelector('#request-form').scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                    
+                    // Optional: Add a visual indication of selected package
+                    const formTitle = document.querySelector('#request-form .section-title');
+                    if (formTitle) {
+                        formTitle.innerHTML = `Demande de Sponsoring - Package ${packageName}`;
+                    }
+                });
+            });
+        });
+    </script>
+
+    <script src="js/dashboard.js"></script>
+
+    <footer>
+        <div class="container">
+            <p>&copy; <?php echo date('Y'); ?> Festival Sponsoring. Tous droits réservés.</p>
+        </div>
+    </footer>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Confirmation de suppression</h3>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir supprimer ce sponsor ? Cette action est irréversible.
+            </div>
+            <div class="modal-footer">
+                <button id="cancelDelete" class="modal-btn modal-btn-cancel">Annuler</button>
+                <button id="confirmDelete" class="modal-btn modal-btn-delete">Supprimer</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

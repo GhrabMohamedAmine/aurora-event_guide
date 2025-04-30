@@ -184,6 +184,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn-delete:hover {
             background-color: #c82333;
         }
+
+        .form-control.validated {
+            transition: all 0.3s ease;
+        }
+        .form-group {
+            position: relative;
+        }
+        .validation-error {
+            color: #dc3545;
+            font-size: 0.85rem;
+            margin-top: 5px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 0 2px rgba(56, 29, 81, 0.2);
+            outline: none;
+        }
+        .form-control.invalid {
+            border-color: #dc3545;
+            background-color: #fff8f8;
+        }
+        .form-control.valid {
+            border-color: #28a745;
+            background-color: #f8fff8;
+        }
     </style>
 </head>
 <body>
@@ -212,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="form-container">
-            <form method="POST" id="demandeForm" onsubmit="return validateForm(event)">
+            <form method="POST" id="demandeForm">
                 <?php if (isset($error)): ?>
                     <div class="alert alert-danger" style="color: red; margin-bottom: 15px;">
                         <?php echo htmlspecialchars($error); ?>
@@ -248,31 +274,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
     
     <script>
-    function validateForm(event) {
-        event.preventDefault();
-        
-        let errors = [];
-        const id_sponsor = document.getElementById('id_sponsor').value.trim();
-        const id_organisateur = document.getElementById('id_organisateur').value.trim();
-        const montant = document.getElementById('montant').value.trim();
-        const idevent = document.getElementById('idevent').value.trim();
-        
-        if (!id_sponsor) errors.push("L'ID du sponsor est requis");
-        if (!id_organisateur) errors.push("L'ID de l'organisateur est requis");
-        if (!montant) errors.push("Le montant est requis");
-        if (!idevent) errors.push("L'ID de l'événement est requis");
-        if (isNaN(montant)) {
-            errors.push("Le montant doit être un nombre");
+    // Ajouter du style pour la validation
+    const style = document.createElement('style');
+    style.textContent = `
+        .form-control.validated {
+            transition: all 0.3s ease;
         }
-        
-        if (errors.length > 0) {
-            alert(errors.join('\n'));
+        .form-group {
+            position: relative;
+        }
+        .validation-error {
+            color: #dc3545;
+            font-size: 0.85rem;
+            margin-top: 5px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 0 2px rgba(56, 29, 81, 0.2);
+            outline: none;
+        }
+        .form-control.invalid {
+            border-color: #dc3545;
+            background-color: #fff8f8;
+        }
+        .form-control.valid {
+            border-color: #28a745;
+            background-color: #f8fff8;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Fonction pour valider un champ
+    function validateField(field, rules) {
+        const value = field.value.trim();
+        let error = null;
+
+        // Vérification si le champ est requis
+        if (rules.required && !value) {
+            error = rules.requiredMessage || "Ce champ est requis";
+        } 
+        // Vérification de format avec regex
+        else if (value && rules.pattern && !rules.pattern.test(value)) {
+            error = rules.patternMessage || "Format invalide";
+        }
+        // Vérification de valeur minimale pour les nombres
+        else if (value && rules.min !== undefined && parseFloat(value) < rules.min) {
+            error = rules.minMessage || `La valeur doit être au moins ${rules.min}`;
+        }
+
+        // Récupérer ou créer le conteneur d'erreur
+        let errorContainer = field.nextElementSibling;
+        if (!errorContainer || !errorContainer.classList.contains('validation-error')) {
+            errorContainer = document.createElement('div');
+            errorContainer.className = 'validation-error';
+            field.parentNode.insertBefore(errorContainer, field.nextSibling);
+        }
+
+        // Ajouter ou supprimer le message d'erreur
+        if (error) {
+            errorContainer.textContent = error;
+            errorContainer.style.opacity = '1';
+            errorContainer.style.height = 'auto';
+            field.classList.add('invalid');
+            field.classList.remove('valid');
             return false;
+        } else {
+            errorContainer.style.opacity = '0';
+            errorContainer.style.height = '0';
+            field.classList.remove('invalid');
+            field.classList.add('valid');
+            return true;
         }
-        
-        document.getElementById('demandeForm').submit();
-        return true;
     }
+
+    // Définir les règles de validation pour chaque champ
+    const validationRules = {
+        id_sponsor: {
+            required: true,
+            requiredMessage: "L'ID du sponsor est requis",
+            pattern: /^[0-9]+$/,
+            patternMessage: "L'ID du sponsor doit être un nombre entier valide"
+        },
+        id_organisateur: {
+            required: true,
+            requiredMessage: "L'ID de l'organisateur est requis",
+            pattern: /^[0-9]+$/,
+            patternMessage: "L'ID de l'organisateur doit être un nombre entier valide"
+        },
+        montant: {
+            required: true,
+            requiredMessage: "Le montant est requis",
+            pattern: /^[0-9]+(\.[0-9]{1,2})?$/,
+            patternMessage: "Le montant doit être un nombre positif (avec 2 décimales maximum)",
+            min: 0.01,
+            minMessage: "Le montant doit être supérieur à 0"
+        },
+        idevent: {
+            required: true,
+            requiredMessage: "L'ID de l'événement est requis",
+            pattern: /^[0-9]+$/,
+            patternMessage: "L'ID de l'événement doit être un nombre entier valide"
+        }
+    };
+
+    // Initialiser la validation en temps réel
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('demandeForm');
+        const fields = form.querySelectorAll('input');
+        
+        // Configurer la validation en temps réel pour chaque champ
+        fields.forEach(field => {
+            const rules = validationRules[field.id];
+            if (rules) {
+                field.classList.add('validated');
+                
+                // Validation à la perte de focus
+                field.addEventListener('blur', function() {
+                    validateField(field, rules);
+                    field.dataset.touched = 'true';
+                });
+                
+                // Validation pendant la saisie après le premier blur
+                field.addEventListener('input', function() {
+                    if (field.dataset.touched === 'true') {
+                        validateField(field, rules);
+                    }
+                });
+            }
+        });
+        
+        // Validation du formulaire à la soumission
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            let formIsValid = true;
+            
+            // Valider tous les champs
+            fields.forEach(field => {
+                const rules = validationRules[field.id];
+                if (rules) {
+                    const isFieldValid = validateField(field, rules);
+                    formIsValid = formIsValid && isFieldValid;
+                }
+            });
+            
+            // Soumettre le formulaire si tout est valide
+            if (formIsValid) {
+                this.submit();
+            } else {
+                // Faire défiler jusqu'au premier champ invalide
+                const firstInvalidField = form.querySelector('.form-control.invalid');
+                if (firstInvalidField) {
+                    firstInvalidField.focus();
+                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+    });
     </script>
 </body>
 </html>
