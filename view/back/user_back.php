@@ -1,9 +1,9 @@
 <?php
 require_once '../../config.php';
-require_once '../../controller/userC.php';
+require_once '../../controller/user_controller.php';
 
 // Initialize the database connection
-$db = config::getConnexion();
+$db = getDB(); // Use the getDB() function from config.php
 $userController = new UserController($db);
 
 // Fetch all users

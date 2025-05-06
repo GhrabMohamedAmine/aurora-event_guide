@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../model/Event.php';
 require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
 
 session_start();
 
@@ -16,7 +17,7 @@ if ($reservation_id_input === null || !ctype_digit($reservation_id_input) || $re
     exit;
 }
 
-$reservation_id = $reservation_id_input;
+$reservation_id = (int)$reservation_id_input;
 $reservation = Reservation::getById($reservation_id);
 
 if (!$reservation) {
@@ -38,9 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'nom' => trim(filter_input(INPUT_POST, 'nom', FILTER_SANITIZE_STRING)),
         'telephone' => trim(filter_input(INPUT_POST, 'telephone', FILTER_SANITIZE_STRING)),
         'nombre_places' => filter_input(INPUT_POST, 'nombre_places', FILTER_VALIDATE_INT, [
-            'options' => [
-                'min_range' => 1
-            ]
+            'options' => ['min_range' => 1]
         ]),
         'categorie' => trim(filter_input(INPUT_POST, 'categorie', FILTER_SANITIZE_STRING)),
         'mode_paiement' => trim(filter_input(INPUT_POST, 'mode_paiement', FILTER_SANITIZE_STRING)),
@@ -66,16 +65,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Veuillez sélectionner un mode de paiement valide.';
     }
 
-    // If no errors, update the reservation
+    // If no errors, update the reservation and user data
     if (empty($errors)) {
         try {
+            // Update Reservation object
             $reservation->setIdEvent($data['id_event']);
-            $reservation->setNom($data['nom']);
-            $reservation->setTelephone($data['telephone']);
             $reservation->setNombrePlaces($data['nombre_places']);
             $reservation->setCategorie($data['categorie']);
             $reservation->setModePaiement($data['mode_paiement']);
 
+            // Update user data (nom and telephone) in the user table
+            $db = getDB();
+            $sql = "UPDATE users SET nom = :nom, telephone = :telephone WHERE id_user = :id_user";
+            $query = $db->prepare($sql);
+            $query->execute([
+                'nom' => $data['nom'],
+                'telephone' => $data['telephone'],
+                'id_user' => $reservation->getIdUser()
+            ]);
+
+            // Update reservation in the database
             if ($reservation->update()) {
                 $_SESSION['success'] = 'Réservation mise à jour avec succès !';
                 header('Location: afficher.php');
@@ -114,7 +123,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             min-height: 100vh;
         }
 
-        /* Sidebar Styles */
         .sidebar {
             width: 250px;
             background-color: #301934;
@@ -454,96 +462,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Fonctions de validation
             function validateIdEvent() {
                 const value = inputs.id_event.value;
                 const errorElement = document.getElementById('idEventError');
-
                 if (value === '') {
                     showError(inputs.id_event, errorElement, 'Veuillez sélectionner un événement');
                     return false;
-                } else {
-                    clearError(inputs.id_event, errorElement);
-                    return true;
                 }
+                clearError(inputs.id_event, errorElement);
+                return true;
             }
 
             function validateNom() {
                 const value = inputs.nom.value.trim();
                 const errorElement = document.getElementById('nomError');
-
                 if (value === '') {
                     showError(inputs.nom, errorElement, 'Le nom est requis');
                     return false;
-                } else if (value.length < 3) {
+                }
+                if (value.length < 3) {
                     showError(inputs.nom, errorElement, 'Le nom doit contenir au moins 3 caractères');
                     return false;
-                } else {
-                    clearError(inputs.nom, errorElement);
-                    return true;
                 }
+                clearError(inputs.nom, errorElement);
+                return true;
             }
 
             function validateTelephone() {
                 const value = inputs.telephone.value.trim();
                 const errorElement = document.getElementById('telephoneError');
                 const phoneRegex = /^[0-9]{8}$/;
-
                 if (value === '') {
                     showError(inputs.telephone, errorElement, 'Le numéro de téléphone est requis');
                     return false;
-                } else if (!phoneRegex.test(value)) {
+                }
+                if (!phoneRegex.test(value)) {
                     showError(inputs.telephone, errorElement, 'Veuillez entrer un numéro valide (8 chiffres)');
                     return false;
-                } else {
-                    clearError(inputs.telephone, errorElement);
-                    return true;
                 }
+                clearError(inputs.telephone, errorElement);
+                return true;
             }
 
             function validateNombrePlaces() {
                 const value = inputs.nombre_places.value;
                 const errorElement = document.getElementById('nombrePlacesError');
-
                 if (value === '' || isNaN(value)) {
                     showError(inputs.nombre_places, errorElement, 'Veuillez entrer un nombre');
                     return false;
-                } else if (parseInt(value) <= 0) {
+                }
+                if (parseInt(value) <= 0) {
                     showError(inputs.nombre_places, errorElement, 'Le nombre de places doit être positif');
                     return false;
-                } else {
-                    clearError(inputs.nombre_places, errorElement);
-                    return true;
                 }
+                clearError(inputs.nombre_places, errorElement);
+                return true;
             }
 
             function validateCategorie() {
                 const value = inputs.categorie.value;
                 const errorElement = document.getElementById('categorieError');
-
                 if (value === '') {
                     showError(inputs.categorie, errorElement, 'Veuillez sélectionner une catégorie');
                     return false;
-                } else {
-                    clearError(inputs.categorie, errorElement);
-                    return true;
                 }
+                clearError(inputs.categorie, errorElement);
+                return true;
             }
 
             function validateModePaiement() {
                 const value = inputs.mode_paiement.value;
                 const errorElement = document.getElementById('modePaiementError');
-
                 if (value === '') {
                     showError(inputs.mode_paiement, errorElement, 'Veuillez sélectionner un mode de paiement');
                     return false;
-                } else {
-                    clearError(inputs.mode_paiement, errorElement);
-                    return true;
                 }
+                clearError(inputs.mode_paiement, errorElement);
+                return true;
             }
 
-            // Fonctions utilitaires
             function showError(input, errorElement, message) {
                 input.classList.add('error-input');
                 errorElement.textContent = message;
@@ -554,7 +551,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 errorElement.textContent = '';
             }
 
-            // Formatage du téléphone
             inputs.telephone.addEventListener('input', function(e) {
                 this.value = this.value.replace(/[^0-9]/g, '');
                 if (this.value.length > 8) {
@@ -562,7 +558,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Prevent invalid nombre_places input
             inputs.nombre_places.addEventListener('input', function(e) {
                 if (this.value < 1) {
                     this.value = 1;

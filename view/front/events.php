@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../model/Event.php';
+require_once __DIR__ . '/../../model/reserve.php';
 require_once __DIR__ . '/../../controller/user_controller.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
 
 // Start session for flash messages and user authentication
 session_start();
@@ -21,38 +23,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     
     if ($result === false) {
         $_SESSION['error_message'] = "Email ou mot de passe incorrect.";
-        header('Location: afficher.php');
+        header('Location: events.php');
         exit();
     }
     
     // Get user details
-    $stmt = $db->prepare("SELECT id_user, type, prenom, nom FROM users WHERE email = :email");
+    $stmt = $db->prepare("SELECT id_user, type, prenom, nom, email FROM users WHERE email = :email");
     $stmt->bindParam(':email', $email);
     if (!$stmt->execute()) {
         $_SESSION['error_message'] = "Erreur de base de données lors de la récupération des informations utilisateur.";
-        header('Location: afficher.php');
+        header('Location: events.php');
         exit();
     }
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$user) {
         $_SESSION['error_message'] = "Utilisateur non trouvé.";
-        header('Location: afficher.php');
+        header('Location: events.php');
         exit();
     }
     
     // Store user info in session
     $_SESSION['user_id'] = $user['id_user'];
     $_SESSION['user_type'] = $user['type'];
-    // Set user_name, fallback to email if prenom/nom are unavailable
+    $_SESSION['user_email'] = $user['email'];
     $_SESSION['user_name'] = (!empty($user['prenom']) && !empty($user['nom'])) 
         ? $user['prenom'] . ' ' . $user['nom'] 
         : $email;
     
-    // Regenerate session ID for security
     session_regenerate_id(true);
     
-    // Redirect based on user type
     switch ($user['type']) {
         case 'admin':
             header('Location: ../back/user_back.php?user_id=' . $user['id_user']);
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             header('Location: ../front/user_front.php?user_id=' . $user['id_user'] . '&type=organisateur');
             break;
         case 'participant':
-            header('Location: ../front/events.php?user_id=' . $user['id_user'] . '&type=participant');
+            header('Location: ../front/user_front.php?user_id=' . $user['id_user'] . '&type=participant');
             break;
         default:
             header('Location: ../front/user_front.php?user_id=' . $user['id_user']);
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
     foreach ($required_fields as $field) {
         if (!isset($_POST[$field]) || empty(trim($_POST[$field]))) {
             $_SESSION['error_message'] = "Tous les champs sont obligatoires";
-            header('Location: afficher.php');
+            header('Location: events.php');
             exit();
         }
     }
@@ -99,11 +99,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
     
     if ($result['success']) {
         $_SESSION['success_message'] = "Compte créé avec succès! Vous pouvez maintenant vous connecter.";
-        header('Location: afficher.php');
+        header('Location: events.php');
         exit();
     } else {
         $_SESSION['error_message'] = $result['message'];
-        header('Location: afficher.php');
+        header('Location: events.php');
         exit();
     }
 }
@@ -112,8 +112,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
     session_unset();
     session_destroy();
-    header('Location: afficher.php');
+    header('Location: events.php');
     exit();
+}
+
+// Handle reservation cancellation
+if (isset($_GET['action']) && $_GET['action'] === 'cancel_reservation' && isset($_GET['id_reservation']) && $isLoggedIn) {
+    $reservationController = new ReservationC();
+    $id_reservation = filter_var($_GET['id_reservation'], FILTER_VALIDATE_INT);
+    if ($id_reservation === false) {
+        $_SESSION['error_message'] = "ID de réservation invalide.";
+        header('Location: my_reservations.php#reservations');
+        exit();
+    }
+    // Verify the reservation belongs to the user
+    $reservation = $reservationController->getReservationById($id_reservation);
+    if ($reservation && $reservation[0]['id_user'] == $_SESSION['user_id']) {
+        $result = $reservationController->supprimerReservation($id_reservation);
+        if ($result) {
+            $_SESSION['success_message'] = "Réservation annulée avec succès.";
+        } else {
+            $_SESSION['error_message'] = "Erreur lors de l'annulation de la réservation.";
+        }
+    } else {
+        $_SESSION['error_message'] = "Vous n'êtes pas autorisé à annuler cette réservation.";
+    }
+    header('Location: my_reservations.php#reservations');
+    exit();
+}
+
+// Handle event deletion (for organizers)
+if (isset($_GET['action']) && $_GET['action'] === 'delete_event' && isset($_GET['id_event']) && $isLoggedIn && $userType === 'organisateur') {
+    $id_event = filter_var($_GET['id_event'], FILTER_VALIDATE_INT);
+    if ($id_event === false) {
+        $_SESSION['error_message'] = "ID d'événement invalide.";
+        header('Location: events.php#my-events');
+        exit();
+    }
+    // Verify the event belongs to the organizer
+    $event = Event::getById($id_event); // Assuming Event class has a getById method
+    if ($event && $event->getIdUser() == $_SESSION['user_id']) { // Assuming Event has getIdUser method
+        // Check if there are any reservations for this event
+        $reservationController = new ReservationC();
+        $reservations = $reservationController->afficherReservationsParEvenement($id_event);
+        if (!empty($reservations)) {
+            $_SESSION['error_message'] = "Impossible de supprimer l'événement : il existe des réservations associées.";
+            header('Location: events.php#my-events');
+            exit();
+        }
+        // Delete the event
+        $result = $event->delete(); // Assuming Event class has a delete method
+        if ($result) {
+            $_SESSION['success_message'] = "Événement supprimé avec succès.";
+        } else {
+            $_SESSION['error_message'] = "Erreur lors de la suppression de l'événement.";
+        }
+    } else {
+        $_SESSION['error_message'] = "Vous n'êtes pas autorisé à supprimer cet événement.";
+    }
+    header('Location: events.php#my-events');
+    exit();
+}
+
+// Get all events
+$events = Event::getAll();
+
+// Get organizer's events if user is an organizer
+$organizerEvents = [];
+if ($isLoggedIn && $userType === 'organisateur') {
+    // Assuming a method to fetch events by organizer exists
+    // If not, we can query directly
+    $db = getDB();
+    $sql = "SELECT * FROM evenement WHERE id_user = :id_user ORDER BY date DESC";
+    try {
+        $query = $db->prepare($sql);
+        $query->execute(['id_user' => $_SESSION['user_id']]);
+        $organizerEvents = $query->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $_SESSION['error_message'] = "Erreur lors de la récupération des événements : " . $e->getMessage();
+        $organizerEvents = [];
+    }
 }
 ?>
 
@@ -122,9 +200,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Aurora Event - Your platform for unforgettable events">
+    <meta name="description" content="Aurora Event - Browse our upcoming events">
     <meta name="author" content="">
-    <title>Aurora Event</title>
+    <title>Events - Aurora Event</title>
 
     <!-- CSS FILES -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -136,6 +214,31 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
+        .navbar {
+            background-color: #ffffff;
+            padding: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar .nav-link {
+            color: #602299;
+        }
+
+        .navbar .nav-link.active {
+            color: #602299;
+        }
+
+        .navbar .nav-link:hover {
+            color: #4a1a7a;
+        }
+
+        .events-section {
+            background-color: #602299;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
         .section-title {
             position: relative;
             margin-bottom: 50px;
@@ -145,7 +248,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
         .section-title h2 {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #381d51;
+            color: #fff;
             position: relative;
             display: inline-block;
         }
@@ -155,10 +258,152 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
             position: absolute;
             width: 50px;
             height: 3px;
-            background-color: #381d51;
+            background-color: #fff;
             bottom: -10px;
             left: 50%;
             transform: translateX(-50%);
+        }
+
+        .events-horizontal-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 30px;
+            padding: 20px 0;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .events-horizontal-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .events-horizontal-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .events-horizontal-scroll::-webkit-scrollbar-thumb {
+            background: #381d51;
+            border-radius: 10px;
+        }
+
+        .events-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+            background: #381d51;
+        }
+
+        .event-card-horizontal {
+            flex: 0 0 350px;
+            scroll-snap-align: start;
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .event-card-horizontal:hover {
+            transform: translateY(-10px);
+        }
+
+        .event-card-horizontal img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .event-card-content-horizontal {
+            padding: 20px;
+        }
+
+        .event-card-content-horizontal h4 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #381d51;
+        }
+
+        .event-card-content-horizontal p {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .event-time {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #381d51;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .event-time i {
+            font-size: 1.2rem;
+        }
+
+        .event-price {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #381d51;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .event-price i {
+            font-size: 1.2rem;
+        }
+
+        .btn-reserve, .btn-location {
+            background-color: #381d51;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        .btn-reserve:hover, .btn-location:hover {
+            background-color: #381d51;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+        }
+
+        .event-card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .scroll-arrows {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .scroll-arrow {
+            background-color: #381d51;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .scroll-arrow:hover {
+            background-color: #381d51;
+            transform: scale(1.1);
         }
 
         .message {
@@ -178,25 +423,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
             color: #721c24;
         }
 
-        .btn-explore-events {
-            background-color: #381d51;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-weight: 600;
-            transition: all 0.3s;
-            text-decoration: none;
+        .back-link {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            cursor: pointer;
+            gap: 8px;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            transition: color 0.3s;
         }
 
-        .btn-explore-events:hover {
-            background-color: #381d51;
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+        .back-link:hover {
+            color: #e0e0e0;
         }
 
         /* Modal Styles */
@@ -327,6 +566,97 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
         .hidden {
             display: none;
         }
+
+        /* Events Sections */
+        .my-events-section {
+            background-color: #602299;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .table-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .table th {
+            background-color: #381d51;
+            color: white;
+            font-size: 13px;
+        }
+
+        .table th, .table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            color: white;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
+
+        .btn-edit {
+            background-color: #ffc107;
+        }
+
+        .btn-edit:hover {
+            background-color: #e0a800;
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+        }
+
+        .btn-delete:hover {
+            background-color: #c82333;
+        }
+
+        @media (max-width: 992px) {
+            .event-card-horizontal {
+                flex: 0 0 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .event-card-horizontal {
+                flex: 0 0 280px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .event-card-horizontal {
+                flex: 0 0 85%;
+            }
+        }
     </style>
 </head>
 
@@ -361,16 +691,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav align-items-lg-center ms-auto me-lg-5">
                         <li class="nav-item">
-                            <a class="nav-link click-scroll" href="#section_1">Home</a>
+                            <a class="nav-link" href="afficher.php#section_1">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link click-scroll" href="#section_2">About</a>
+                            <a class="nav-link" href="afficher.php#section_2">About</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="contact">contact</a>
+                            <a class="nav-link active" href="events.php">Events</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link click-scroll" href="#section_4">Reviews</a>
+                            <a class="nav-link" href="afficher.php#section_4">Reviews</a>
                         </li>
                         <?php if ($isLoggedIn && $userType === 'admin'): ?>
                             <li class="nav-item">
@@ -385,7 +715,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="userMenu">
                                 <li><a class="dropdown-item" href="../front/user_front.php?user_id=<?php echo $_SESSION['user_id']; ?>&type=<?php echo $userType; ?>">Profil</a></li>
-                                <li><a class="dropdown-item" href="afficher.php?action=logout">Déconnexion</a></li>
+                                <li><a class="dropdown-item" href="my_reservations.php">Mes Réservations</a></li>
+                                <?php if ($userType === 'organisateur'): ?>
+                                    <li><a class="dropdown-item" href="events.php#my-events">Mes Événements</a></li>
+                                <?php endif; ?>
+                                <li><a class="dropdown-item" href="events.php?action=logout">Déconnexion</a></li>
                             </ul>
                         </div>
                     <?php else: ?>
@@ -405,200 +739,135 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
             <?php unset($_SESSION['error_message']); ?>
         <?php endif; ?>
 
-        <section class="hero-section" id="section_1">
-            <div class="section-overlay"></div>
-            <div class="container d-flex justify-content-center align-items-center">
-                <div class="row">
-                    <div class="col-12 mt-auto mb-5 text-center">
-                        <small>Aurora Event Presents</small>
-                        <h1 class="text-white mb-5">Night Live 2025</h1>
-                        <?php if ($isLoggedIn): ?>
-                            <a class="btn custom-btn smoothscroll" href="#section_2">Let's begin</a>
-                        <?php else: ?>
-                            <a class="btn custom-btn smoothscroll" href="#" data-bs-toggle="modal" data-bs-target="#loginModal">Commencer</a>
+        <section class="section-padding">
+            <div class="container">
+                <div class="events-section">
+                    <div class="section-title">
+                        <h2>Upcoming Events</h2>
+                    </div>
+
+                    <a href="afficher.php#section_1" class="back-link"><i class="fas fa-arrow-left"></i> Back to Home</a>
+
+                    <div class="events-grid-container">
+                        <?php if (isset($_SESSION['success'])): ?>
+                            <div class="message success">
+                                <?= htmlspecialchars($_SESSION['success']) ?>
+                            </div>
+                            <?php unset($_SESSION['success']); ?>
                         <?php endif; ?>
-                    </div>
 
-                    <div class="col-lg-12 col-12 mt-auto d-flex flex-column flex-lg-row text-center">
-                        <div class="date-wrap">
-                            <h5 class="text-white">
-                                <i class="custom-icon bi-clock me-2"></i>
-                                13 - 03<sup>th</sup>, Mar 2025
-                            </h5>
-                        </div>
-                        <div class="location-wrap mx-auto py-3 py-lg-0">
-                            <h5 class="text-white">
-                                <i class="custom-icon bi-geo-alt me-2"></i>
-                                Gammarth Tunis, Tunisie
-                            </h5>
-                        </div>
-                        <div class="social-share">
-                            <ul class="social-icon d-flex align-items-center justify-content-center">
-                                <span class="text-white me-3">Share:</span>
-                                <li class="social-icon-item">
-                                    <a href="https://www.facebook.com/sharer/sharer.php?u=https://votre-evenement.com" class="social-icon-link" target="_blank">
-                                        <span class="bi-facebook"></span>
-                                    </a>
-                                </li>
-                                <li class="social-icon-item">
-                                    <a href="https://twitter.com/intent/tweet?url=https://votre-evenement.com&text=Rejoignez%20cet%20événement%20incroyable%20!" class="social-icon-link" target="_blank">
-                                        <span class="bi-twitter"></span>
-                                    </a>
-                                </li>
-                                <li class="social-icon-item">
-                                    <a href="https://instagram.com/votre-compte-instagram" class="social-icon-link" target="_blank">
-                                        <span class="bi-instagram"></span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="video-wrap">
-                <video autoplay loop muted class="custom-video" poster="">
-                    <source src="video/pexels-2022395.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-        </section>
+                        <?php if (isset($_SESSION['error'])): ?>
+                            <div class="message error">
+                                <?= htmlspecialchars($_SESSION['error']) ?>
+                            </div>
+                            <?php unset($_SESSION['error']); ?>
+                        <?php endif; ?>
 
-        <section class="about-section section-padding" id="section_2">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-6 col-12 mb-4 mb-lg-0 d-flex align-items-center">
-                        <div class="services-info">
-                            <h2 class="text-white mb-4">About Aurora Event</h2>
-                            <p class="text-white">
-                                Aurora Event is your go-to platform for creating and participating in events that bring people together. Whether you want to join a public concert, attend a cooking workshop, explore a painting class, or organize a private event for friends, Aurora Event makes it simple and accessible.
-                            </p>
-                            <h6 class="text-white mt-4">Create Your Own Experience</h6>
-                            <p class="text-white">
-                                Our platform empowers anyone—from artists and creators to everyday individuals—to host public or private events, both online and in real life.
-                            </p>
-                            <h6 class="text-white mt-4">Connect, Share, and Enjoy</h6>
-                            <p class="text-white">
-                                With Aurora Event, every moment becomes an opportunity to connect, share, and create unforgettable experiences. Thank you for being part of Aurora Event!
-                            </p>
-                        </div>
-                    </div>
-                    <div class="col-lg-6 col-12">
-                        <div class="about-text-wrap">
-                            <img src="images/logo.png" class="about-image img-fluid" alt="Aurora Event Logo">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section-padding" id="section_3">
-            <div class="container">
-                <div class="section-title">
-                    <h2>Explore Our Events</h2>
-                </div>
-                <div class="text-center">
-                    <a href="events.php" class="btn-explore-events">View All Events</a>
-                </div>
-
-                <div class="row mt-5">
-                    <div class="col-12">
-                        <div class="p-4" style="background-color: #f8f9fa; border-radius: 15px;">
-                            <h3 class="mb-4 text-center">Why Choose Aurora Events?</h3>
-                            <div class="row">
-                                <div class="col-md-3 col-6 mb-4">
-                                    <div class="d-flex align-items-start">
-                                        <div class="me-3">
-                                            <i class="bi-check-circle-fill" style="color: #602299; font-size: 1.5rem;"></i>
-                                        </div>
-                                        <div>
-                                            <h5>Curated Experiences</h5>
-                                            <p>We handpick the best events to ensure quality and memorable experiences.</p>
+                        <?php if (empty($events)): ?>
+                            <p style="color: #fff;">No events to display.</p>
+                        <?php else: ?>
+                            <div class="events-horizontal-scroll" id="eventsScroll">
+                                <?php foreach ($events as $event): ?>
+                                    <div class="event-card-horizontal">
+                                        <?php if ($event->getImage()): ?>
+                                            <?php $imagePath = htmlspecialchars($event->getImage()); ?>
+                                            <img src="../../<?= $imagePath ?>" alt="Event Image">
+                                        <?php else: ?>
+                                            <img src="https://via.placeholder.com/350x250?text=No+Image" alt="Default Image">
+                                        <?php endif; ?>
+                                        <div class="event-card-content-horizontal">
+                                            <h4><?= htmlspecialchars($event->getTitre()) ?></h4>
+                                            <p><strong>Artist:</strong> <?= htmlspecialchars($event->getArtiste()) ?></p>
+                                            <div class="event-time">
+                                                <i class="far fa-clock"></i>
+                                                <span><?= htmlspecialchars($event->getHeure() ?? 'Time not specified') ?></span>
+                                            </div>
+                                            <p><strong>Date:</strong> <?= htmlspecialchars($event->getDate()) ?></p>
+                                            <p><strong>Location:</strong> <?= htmlspecialchars($event->getLieu()) ?></p>
+                                            <div class="event-price">
+                                                <i class="fas fa-money-bill-wave"></i>
+                                                <span><?= htmlspecialchars(number_format($event->getPrix(), 2, '.', '')) ?> TND</span>
+                                            </div>
+                                            <p><?= htmlspecialchars($event->getDescription() ?? 'No description available.') ?></p>
+                                            <div class="event-card-actions">
+                                                <a href="reserve.php?id_event=<?= $event->getIdEvent() ?>" class="btn btn-reserve">
+                                                    <i class="fas fa-ticket-alt"></i> Reserve Now
+                                                </a>
+                                                <a href="map.php?id_event=<?= $event->getIdEvent() ?>" class="btn btn-location">
+                                                    <i class="fas fa-map-marker-alt"></i> Location
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div class="scroll-arrows">
+                                <div class="scroll-arrow" onclick="scrollEvents(-350)">
+                                    <i class="fas fa-chevron-left"></i>
                                 </div>
-                                <div class="col-md-3 col-6 mb-4">
-                                    <div class="d-flex align-items-start">
-                                        <div class="me-3">
-                                            <i class="bi-check-circle-fill" style="color: #602299; font-size: 1.5rem;"></i>
-                                        </div>
-                                        <div>
-                                            <h5>Easy Booking</h5>
-                                            <p>Simple reservation process to secure your spot at any event.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-6 mb-4">
-                                    <div class="d-flex align-items-start">
-                                        <div class="me-3">
-                                            <i class="bi-check-circle-fill" style="color: #602299; font-size: 1.5rem;"></i>
-                                        </div>
-                                        <div>
-                                            <h5>Customer Support</h5>
-                                            <p>Dedicated team available to assist with any questions.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-6 mb-4">
-                                    <div class="d-flex align-items-start">
-                                        <div class="me-3">
-                                            <i class="bi-check-circle-fill" style="color: #602299; font-size: 1.5rem;"></i>
-                                        </div>
-                                        <div>
-                                            <h5>Flexible Options</h5>
-                                            <p>Various payment methods and cancellation policies available.</p>
-                                        </div>
-                                    </div>
+                                <div class="scroll-arrow" onclick="scrollEvents(350)">
+                                    <i class="fas fa-chevron-right"></i>
                                 </div>
                             </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($isLoggedIn): ?>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <a href="my_reservations.php" class="btn aurora-btn">
+                                <i class="fas fa-ticket-alt"></i> Voir Mes Réservations
+                            </a>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="reviews-section section-padding" id="section_4">
-            <div class="container">
-                <div class="row justify-content-center">
-                    <div class="col-12 text-center">
-                        <h2 class="mb-4">What Our Users Say</h2>
-                        <p>Your feedback helps us improve and inspires others to join us!</p>
-                    </div>
+                    <?php endif; ?>
                 </div>
 
-                <div class="row mt-5">
-                    <div class="col-lg-4 col-md-6 col-12">
-                        <div class="review-card">
-                            <img src="images/image1.png" alt="User 1" class="review-image">
-                            <h5 class="review-name">Karim</h5>
-                            <p class="review-comment">
-                                "This website has been a game-changer! Easy to use and very effective."
-                            </p>
-                            <div class="review-stars">★★★★★</div>
+                <!-- My Events Section (for Organizers) -->
+                <?php if ($isLoggedIn && $userType === 'organisateur'): ?>
+                    <div class="my-events-section" id="my-events">
+                        <div class="section-title">
+                            <h2>Mes Événements</h2>
+                        </div>
+                        <div class="table-container">
+                            <?php if (empty($organizerEvents)): ?>
+                                <p style="color: #fff;">Aucun événement à afficher.</p>
+                            <?php else: ?>
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Titre</th>
+                                            <th>Artiste</th>
+                                            <th>Date</th>
+                                            <th>Lieu</th>
+                                            <th>Prix (TND)</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($organizerEvents as $event): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($event['id_event']) ?></td>
+                                                <td><?= htmlspecialchars($event['titre']) ?></td>
+                                                <td><?= htmlspecialchars($event['artiste'] ?? 'N/A') ?></td>
+                                                <td><?= htmlspecialchars($event['date']) ?></td>
+                                                <td><?= htmlspecialchars($event['lieu']) ?></td>
+                                                <td><?= htmlspecialchars(number_format($event['prix'], 2)) ?></td>
+                                                <td class="action-buttons">
+                                                    <a href="edit_event.php?id_event=<?= $event['id_event'] ?>" class="btn btn-edit">
+                                                        <i class="fas fa-edit"></i> Modifier
+                                                    </a>
+                                                    <a href="events.php?action=delete_event&id_event=<?= $event['id_event'] ?>" class="btn btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')">
+                                                        <i class="fas fa-trash"></i> Supprimer
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            <?php endif; ?>
                         </div>
                     </div>
-
-                    <div class="col-lg-4 col-md-6 col-12">
-                        <div class="review-card">
-                            <img src="images/image2.png" alt="User 2" class="review-image">
-                            <h5 class="review-name">Manel</h5>
-                            <p class="review-comment">
-                                "Fantastic! I highly recommend it to anyone looking for quality."
-                            </p>
-                            <div class="review-stars">★★★★☆</div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6 col-12">
-                        <div class="review-card">
-                            <img src="images/image3.png" alt="User 3" class="review-image">
-                            <h5 class="review-name">Emily</h5>
-                            <p class="review-comment">
-                                "I've had a wonderful experience using this website. Great service!"
-                            </p>
-                            <div class="review-stars">★★★★★</div>
-                        </div>
-                    </div>
-                </div>
+                <?php endif; ?>
             </div>
         </section>
     </main>
@@ -651,16 +920,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
                     <h5 class="site-footer-title mb-3">Links</h5>
                     <ul class="site-footer-links">
                         <li class="site-footer-link-item">
-                            <a href="#" class="site-footer-link">Home</a>
+                            <a href="afficher.php#section_1" class="site-footer-link">Home</a>
                         </li>
                         <li class="site-footer-link-item">
-                            <a class="nav-link click-scroll" href="#section_2">About</a>
+                            <a class="nav-link" href="afficher.php#section_2">About</a>
                         </li>
                         <li class="site-footer-link-item">
-                            <a class="nav-link" href="events.php">Events</a>
+                            <a class="nav-link active" href="events.php">Events</a>
                         </li>
                         <li class="site-footer-link-item">
-                            <a class="nav-link click-scroll" href="#section_4">Reviews</a>
+                            <a class="nav-link" href="afficher.php#section_4">Reviews</a>
                         </li>
                     </ul>
                 </div>
@@ -731,7 +1000,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
                     <button type="button" class="btn-close aurora-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body aurora-modal-body">
-                    <form method="POST" action="afficher.php" id="loginForm" onsubmit="return validateLoginForm(event)">
+                    <form method="POST" action="events.php" id="loginForm" onsubmit="return validateLoginForm(event)">
                         <div class="form-group">
                             <label class="form-label aurora-label">
                                 <i class="bi bi-envelope-fill me-2"></i>Adresse email
@@ -772,7 +1041,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
                     <button type="button" class="btn-close aurora-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body aurora-modal-body">
-                    <form method="POST" action="afficher.php" id="add-user-form" onsubmit="return validateForm(this)">
+                    <form method="POST" action="events.php" id="add-user-form" onsubmit="return validateForm(this)">
                         <div class="form-group">
                             <label class="form-label aurora-label">
                                 <i class="bi bi-person-vcard me-2"></i>CIN
@@ -961,6 +1230,23 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        function scrollEvents(offset) {
+            const container = document.getElementById('eventsScroll');
+            container.scrollBy({
+                left: offset,
+                behavior: 'smooth'
+            });
+        }
+
+        document.addEventListener('keydown', function(e) {
+            const container = document.getElementById('eventsScroll');
+            if (e.key === 'ArrowLeft') {
+                scrollEvents(-350);
+            } else if (e.key === 'ArrowRight') {
+                scrollEvents(350);
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             // Smooth scrolling for anchor links
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -1080,7 +1366,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
                 resetModal.show();
             });
 
-            // Placeholder for password reset (implement server-side logic)
+            // Placeholder for password reset
             document.getElementById('reset-submit-email').addEventListener('click', function() {
                 alert('Password reset email sending is not implemented.');
             });

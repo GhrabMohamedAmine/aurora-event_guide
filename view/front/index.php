@@ -1,3 +1,38 @@
+<?php
+// Start session for flash messages
+session_start();
+
+// Simulated backend logic (replace with actual backend implementation)
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../model/User.php'; // Assuming a User model to fetch id_user by email
+require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
+
+$reservationController = new ReservationC();
+$reservations = [];
+
+// Handle search by email
+if (isset($_POST['email']) && !empty($_POST['email'])) {
+    $email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
+    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        // Fetch id_user by email (simulated)
+        $user = User::getByEmail($email); // Replace with actual method
+        if ($user && isset($user['id_user'])) {
+            $id_user = $user['id_user'];
+            // Fetch reservations by id_user
+            $reservations = $reservationController->getReservationsByUserId($id_user); // Replace with actual method
+            if (empty($reservations)) {
+                $_SESSION['error'] = "No reservations found for email: $email.";
+            }
+        } else {
+            $_SESSION['error'] = "No user found with email: $email.";
+        }
+    } else {
+        $_SESSION['error'] = "Please enter a valid email address.";
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -14,6 +49,7 @@
     <link href="css/bootstrap.min.css" rel="stylesheet" />
     <link href="css/bootstrap-icons.css" rel="stylesheet" />
     <link href="css/templatemo-festava-live.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     
     <style>
       /* Custom styles for the event section */
@@ -162,6 +198,91 @@
         transform: translateX(-50%);
       }
       
+      /* Search Bar and Reservations Table */
+      .search-container {
+        margin: 20px 0;
+        text-align: center;
+      }
+      
+      .search-bar {
+        position: relative;
+        display: inline-block;
+        max-width: 400px;
+        width: 100%;
+      }
+      
+      .search-bar input {
+        padding: 10px 40px 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        font-size: 16px;
+        width: 100%;
+        transition: all 0.3s;
+      }
+      
+      .search-bar input:focus {
+        outline: none;
+        border-color: #381d51;
+        box-shadow: 0 0 0 2px rgba(56, 29, 81, 0.2);
+      }
+      
+      .search-bar button {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #381d51;
+        font-size: 18px;
+        cursor: pointer;
+      }
+      
+      .table-container {
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 40px;
+      }
+      
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        font-size: 14px;
+      }
+      
+      .table th {
+        background-color: #381d51;
+        color: white;
+        font-size: 13px;
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      
+      .table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      
+      .table tr:hover {
+        background-color: #f9f9f9;
+      }
+      
+      .message {
+        padding: 10px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        text-align: center;
+      }
+      
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
       
       /* Responsive adjustments */
       @media (max-width: 992px) {
@@ -172,6 +293,16 @@
         .event-photos, .event-info {
           flex: none;
           width: 100%;
+        }
+      }
+      
+      @media (max-width: 576px) {
+        .table {
+          font-size: 12px;
+        }
+        
+        .table th, .table td {
+          padding: 8px;
         }
       }
     </style>
@@ -194,9 +325,9 @@
 
       <nav class="navbar navbar-expand-lg">
         <div class="container">
-          <a class="navbar-brand" href="index.html">
-            <img src="images/logo.png" alt="Logo d'Aroura Event" style="height: 50px; margin-right: 10px" />
-            Aurora &nbsp;&nbsp;Event
+          <a class="navbar-brand" href="index.php">
+            <img src="images/logo.png" alt="Logo d'Auroura Event" style="height: 50px; margin-right: 10px" />
+            Aurora Event
           </a>
 
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -218,7 +349,7 @@
                 <a class="nav-link click-scroll" href="#section_4">Reviews</a>
               </li>
             </ul>
-            <a href="connect.html" class="btn custom-btn d-lg-block d-none">connect with us</a>
+            <a href="connect.html" class="btn custom-btn d-lg-block d-none">Connect with us</a>
           </div>
         </div>
       </nav>
@@ -448,6 +579,63 @@
               <button class="btn-reserve">Reserve Now</button>
             </div>
           </div>
+
+          <!-- Your Reservations Section -->
+          <div class="section-title">
+            <h2>Your Reservations</h2>
+          </div>
+          <div class="search-container">
+            <form method="POST" action="" id="searchForm" autocomplete="off">
+              <div class="search-bar">
+                <input type="email" name="email" id="email" placeholder="Enter your email address" required autocomplete="off">
+                <button type="submit"><i class="fas fa-search"></i></button>
+              </div>
+            </form>
+          </div>
+
+          <div class="table-container">
+            <?php if (isset($_SESSION['error'])): ?>
+              <div class="message error">
+                <?= htmlspecialchars($_SESSION['error']) ?>
+              </div>
+              <?php unset($_SESSION['error']); ?>
+            <?php endif; ?>
+
+            <?php if (empty($reservations)): ?>
+              <p>Please enter your email address to view your reservations.</p>
+            <?php else: ?>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Event</th>
+                    <th>Name</th>
+                    <th>First Name</th>
+                    <th>Phone</th>
+                    <th>Seats</th>
+                    <th>Category</th>
+                    <th>Payment</th>
+                    <th>Total (TND)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($reservations as $reservation): ?>
+                    <tr>
+                      <td><?= htmlspecialchars($reservation['id_reservation'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars($reservation['event_title'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars($reservation['nom'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars($reservation['prenom'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars($reservation['telephone'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars($reservation['nombre_places'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars($reservation['categorie'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars($reservation['mode_paiement'] ?? 'N/A') ?></td>
+                      <td><?= htmlspecialchars(isset($reservation['total']) ? number_format($reservation['total'], 2) : 'N/A') ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            <?php endif; ?>
+          </div>
           
           <!-- Why Choose Us Section -->
           <div class="row mt-5">
@@ -615,7 +803,6 @@
               <li class="site-footer-link-item">
                 <a class="nav-link click-scroll" href="#section_4">Reviews</a>
               </li>
-              
             </ul>
           </div>
 
@@ -659,7 +846,7 @@
             <div class="col-lg-8 col-12 mt-lg-5">
               <ul class="site-footer-links">
                 <li class="site-footer-link-item">
-                  <a href="#" class="site-footer-link">Terms &amp; Conditions</a>
+                  <a href="#" class="site-footer-link">Terms & Conditions</a>
                 </li>
                 <li class="site-footer-link-item">
                   <a href="#" class="site-footer-link">Privacy Policy</a>
@@ -754,6 +941,12 @@
             });
           });
         });
+
+        // Reset the search form on page load
+        const searchForm = document.getElementById('searchForm');
+        if (searchForm) {
+          searchForm.reset();
+        }
       });
     </script>
   </body>

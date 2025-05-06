@@ -1,8 +1,17 @@
 <?php
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
 
 session_start();
+
+// Optional: Check if user is authenticated (adjust based on your auth system)
+// Example: Assumes a user_id in session; modify to match your authentication setup, e.g., $_SESSION['user'] or role-based check
+if (!isset($_SESSION['user_id']) || !$_SESSION['user_id']) {
+    $_SESSION['error'] = 'Vous devez être connecté pour supprimer une réservation.';
+    header('Location: login.php');
+    exit;
+}
 
 // Get the reservation ID from the URL as a string to avoid integer overflow
 $reservation_id_input = filter_input(INPUT_GET, 'id_reservation', FILTER_SANITIZE_STRING);
@@ -37,7 +46,7 @@ try {
     }
 } catch (Exception $e) {
     error_log("Error deleting reservation ID $reservation_id: " . $e->getMessage());
-    $_SESSION['error'] = 'Erreur lors de la suppression : ' . $e->getMessage();
+    $_SESSION['error'] = 'Erreur lors de la suppression : ' . htmlspecialchars($e->getMessage());
 }
 
 header('Location: afficher.php');

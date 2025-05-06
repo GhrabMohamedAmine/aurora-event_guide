@@ -326,75 +326,18 @@ foreach ($events as $event) {
             background-color: #4a1a7a;
         }
 
-        .content-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .content-table th, .content-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .content-table th {
-            background-color: #602299;
-            color: white;
-        }
-
-        .content-table tr:hover {
-            background-color: #f5f5f5;
-        }
-
-        .action-btn {
-            padding: 5px 10px;
-            margin: 0 5px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            color: white;
-            font-size: 12px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .edit-btn {
-            background-color: #2196F3;
-        }
-
-        .delete-btn {
-            background-color: #f44336;
-        }
-
-        .view-btn {
-            background-color: #4CAF50;
-        }
-
-        .event-image {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-
-        .description-cell {
-            max-width: 200px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
         /* Calendar Styles */
         .calendar-container {
             background-color: white;
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 800px; /* Increased calendar height */
         }
 
         #calendar {
             margin-top: 20px;
+            height: 100%; /* Ensure calendar uses full container height */
         }
 
         .fc-event {
@@ -460,9 +403,8 @@ foreach ($events as $event) {
                 width: 100%;
                 flex-wrap: wrap;
             }
-            .content-table {
-                display: block;
-                overflow-x: auto;
+            .calendar-container {
+                height: 600px; /* Adjust height for smaller screens */
             }
         }
 
@@ -488,6 +430,9 @@ foreach ($events as $event) {
             }
             .dashboard-grid {
                 grid-template-columns: 1fr;
+            }
+            .calendar-container {
+                height: 500px; /* Further adjust height for mobile */
             }
         }
     </style>
@@ -578,13 +523,11 @@ foreach ($events as $event) {
                 <div class="number">24</div>
                 <div class="label">Active Events</div>
             </div>
-            
             <div class="stats-card">
                 <img src="https://s3.amazonaws.com/eb-blog-wpmulti/wp-content/uploads/wpmulti/sites/3/2016/06/17101603/twenty20_e95b18fa-eec1-48f2-929e-957c1539f434-2.jpg" alt="Users Icon">
                 <div class="number">1,245</div>
                 <div class="label">Registered Users</div>
             </div>
-            
             <div class="stats-card">
                 <img src="https://th.bing.com/th/id/R.bc0a4d5e6cb1735cfc30f51437ab0395?rik=Bf1w2l5xiINafg&pid=ImgRaw&r=0" alt="Activities Icon">
                 <div class="number">25</div>
@@ -592,83 +535,13 @@ foreach ($events as $event) {
             </div>
         </div>
 
-        <!-- Recent Events Section -->
-        <div class="content-section">
-            <div class="section-header">
-                <h2>Recent Events</h2>
-                <a href="ajouter.php" class="add-btn">
-                    <i class="fas fa-plus"></i> Add Event
-                </a>
-            </div>
-            
-            <table class="content-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Image</th>
-                        <th>Title</th>
-                        <th>Artist</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Location</th>
-                        <th>Description</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>001</td>
-                        <td><img src="https://via.placeholder.com/60" alt="Event Image" class="event-image"></td>
-                        <td>BORA BORA</td>
-                        <td>KBE14</td>
-                        <td>30/04/2025</td>
-                        <td>22:00</td>
-                        <td>GHAMMARTH</td>
-                        <td class="description-cell">Amazing beach party with international DJs</td>
-                        <td>
-                            <button class="action-btn view-btn"><i class="fas fa-eye"></i> View</button>
-                            <button class="action-btn edit-btn"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="action-btn delete-btn"><i class="fas fa-trash"></i> Delete</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>002</td>
-                        <td><img src="https://via.placeholder.com/60" alt="Event Image" class="event-image"></td>
-                        <td>Summer Festival</td>
-                        <td>Various Artists</td>
-                        <td>15/07/2025</td>
-                        <td>18:00</td>
-                        <td>City Park</td>
-                        <td class="description-cell">Annual summer festival with multiple stages and food vendors</td>
-                        <td>
-                            <button class="action-btn view-btn"><i class="fas fa-eye"></i> View</button>
-                            <button class="action-btn edit-btn"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="action-btn delete-btn"><i class="fas fa-trash"></i> Delete</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>003</td>
-                        <td><img src="https://via.placeholder.com/60" alt="Event Image" class="event-image"></td>
-                        <td>Jazz Night</td>
-                        <td>Jazz Quartet</td>
-                        <td>10/05/2025</td>
-                        <td>20:30</td>
-                        <td>Blue Note Club</td>
-                        <td class="description-cell">An evening of smooth jazz and cocktails</td>
-                        <td>
-                            <button class="action-btn view-btn"><i class="fas fa-eye"></i> View</button>
-                            <button class="action-btn edit-btn"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="action-btn delete-btn"><i class="fas fa-trash"></i> Delete</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
         <!-- Calendar Section -->
         <div class="content-section">
             <div class="section-header">
                 <h2>Event Calendar</h2>
+                <a href="ajouter.php" class="add-btn">
+                    <i class="fas fa-plus"></i> Add Event
+                </a>
             </div>
             <div class="calendar-container">
                 <?php if (empty($events)): ?>

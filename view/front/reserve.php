@@ -1,10 +1,17 @@
 <?php
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../model/Event.php';
-require_once __DIR__ . '/../../model/Reserve.php';
-require_once __DIR__ . '/../../controller/reservec.php';
+require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
 
 session_start();
+
+// Check if user is logged in
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
+    $_SESSION['error'] = 'Please log in to make a reservation.';
+    header('Location: afficher.php');
+    exit;
+}
 
 // Validate event ID
 $event_id_input = filter_input(INPUT_GET, 'id_event', FILTER_SANITIZE_STRING);
@@ -35,18 +42,21 @@ if (!$event) {
 // Get event price
 $event_price = $event->getPrix() ?? 0;
 
-// Check if id_user is provided in the query string
-$id_user_from_query = filter_input(INPUT_GET, 'id_user', FILTER_SANITIZE_STRING);
-if ($id_user_from_query) {
-    $form_data['id_user'] = $id_user_from_query;
-}
+// Pre-fill form data with session data
+$form_data = $_SESSION['form_data'] ?? [
+    'email' => $_SESSION['user_email'],
+    'nombre_places' => 1,
+    'categorie' => '',
+    'mode_paiement' => ''
+];
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errors = [];
     $data = [
         'id_event' => $event_id,
-        'id_user' => trim(filter_input(INPUT_POST, 'id_user', FILTER_SANITIZE_STRING)),
+        'email' => $_SESSION['user_email'], // Use session email
+        'id_user' => $_SESSION['user_id'], // Use session user ID
         'nombre_places' => filter_input(INPUT_POST, 'nombre_places', FILTER_VALIDATE_INT, [
             'options' => [
                 'min_range' => 1,
@@ -58,10 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ];
 
     // Validate data
-    if (empty($data['id_user'])) {
-        $errors[] = 'User ID is required.';
-    }
-
     if (!$data['nombre_places'] || $data['nombre_places'] < 1 || $data['nombre_places'] > 20) {
         $errors[] = 'Number of places must be between 1 and 20.';
     }
@@ -76,34 +82,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Invalid payment method.';
     }
 
-    // Verify user existence using id_user
-    if (empty($errors)) {
-        try {
-            $db = getDB();
-            $stmt = $db->prepare("SELECT id_user FROM user WHERE id_user = :id_user");
-            $stmt->execute([':id_user' => $data['id_user']]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$user) {
-                $errors[] = "No user found with ID {$data['id_user']}. <a href='listeuser.php?id_event=$event_id'>See list of users</a>.";
-            }
-        } catch (PDOException $e) {
-            $errors[] = 'Error verifying user: ' . $e->getMessage();
-            error_log("User verification error: " . $e->getMessage());
-        }
-    }
-
     // Create reservation if no errors
     if (empty($errors)) {
         try {
-            $reservation = new Reservation($data);
+            // Create Reservation object with individual parameters
+            $reservation = new Reservation(
+                null, // id_reservation (auto-incremented)
+                $data['id_event'],
+                $data['id_user'], // Use session id_user
+                null, // nom (not stored in reservation table)
+                null, // telephone (not stored in reservation table)
+                $data['nombre_places'],
+                $data['categorie'],
+                $data['mode_paiement']
+            );
             $reservationController = new ReservationC();
             if ($reservationController->ajouterReservation($reservation)) {
                 $_SESSION['success'] = 'Reservation created successfully!';
                 header('Location: afficher.php');
                 exit;
             } else {
-                $errors[] = 'Failed to create reservation.';
+                $errors[] = 'Failed to create reservation. Please try again.';
                 error_log("Failed to create reservation for event ID: $event_id, user ID: {$data['id_user']}");
             }
         } catch (Exception $e) {
@@ -121,8 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Retrieve form data in case of errors
-$form_data = $_SESSION['form_data'] ?? $form_data ?? [];
+// Retrieve form errors
 $form_errors = $_SESSION['form_errors'] ?? [];
 unset($_SESSION['form_data'], $_SESSION['form_errors']);
 ?>
@@ -195,10 +193,9 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                     <input type="hidden" name="id_event" value="<?= $event_id ?>">
                     
                     <div class="mb-3">
-                        <label for="id_user" class="form-label">User ID</label>
-                        <input type="text" class="form-control <?= in_array('User ID is required.', $form_errors) ? 'is-invalid' : '' ?>" 
-                               id="id_user" name="id_user" value="<?= htmlspecialchars($form_data['id_user'] ?? '') ?>" required>
-                        <div id="id_user-error" class="error-message"></div>
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="<?= htmlspecialchars($_SESSION['user_email']) ?>" readonly>
                     </div>
                     
                     <div class="mb-3">
@@ -254,7 +251,6 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('reservationForm');
             const inputs = {
-                id_user: document.getElementById('id_user'),
                 nombre_places: document.getElementById('nombre_places'),
                 total: document.getElementById('total'),
                 categorie: document.getElementById('categorie'),
@@ -265,7 +261,6 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
             const eventPrice = <?= json_encode($event_price) ?>;
 
             // Real-time validation and total calculation
-            inputs.id_user.addEventListener('input', validateIdUser);
             inputs.nombre_places.addEventListener('input', function() {
                 validateNombrePlaces();
                 updateTotal();
@@ -277,7 +272,6 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
             form.addEventListener('submit', function(e) {
                 let isValid = true;
 
-                if (!validateIdUser()) isValid = false;
                 if (!validateNombrePlaces()) isValid = false;
                 if (!validateCategorie()) isValid = false;
                 if (!validateModePaiement()) isValid = false;
@@ -295,19 +289,6 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
             }
 
             // Validation functions
-            function validateIdUser() {
-                const value = inputs.id_user.value.trim();
-                const errorElement = document.getElementById('id_user-error');
-
-                if (value === '') {
-                    showError(inputs.id_user, errorElement, 'User ID is required');
-                    return false;
-                } else {
-                    clearError(inputs.id_user, errorElement);
-                    return true;
-                }
-            }
-
             function validateNombrePlaces() {
                 const value = inputs.nombre_places.value;
                 const errorElement = document.getElementById('nombre_places-error');

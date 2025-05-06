@@ -1,24 +1,73 @@
 <?php
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../model/Event.php';
+require_once __DIR__ . '/../../model/reserve.php';
+require_once __DIR__ . '/../../controller/reserveC.php';
+
+session_start();
 
 // Récupérer tous les événements
 $events = Event::getAll();
 
+// Récupérer toutes les réservations avec les détails de l'utilisateur et de l'événement
+$reservationController = new ReservationC();
+try {
+    $db = getDB();
+    $stmt = $db->prepare("
+        SELECT r.*, u.email, u.nom, e.titre, e.date
+        FROM reservation r
+        JOIN user u ON r.id_user = u.id_user
+        JOIN evenement e ON r.id_event = e.id_event
+    ");
+    $stmt->execute();
+    $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Erreur lors de la récupération des réservations : " . $e->getMessage());
+    $reservations = [];
+}
+
+// Grouper les réservations par ID d'événement
+$eventReservations = [];
+foreach ($reservations as $reservation) {
+    $eventId = $reservation['id_event'];
+    if (!isset($eventReservations[$eventId])) {
+        $eventReservations[$eventId] = [];
+    }
+    $eventReservations[$eventId][] = [
+        'email' => $reservation['email'],
+        'nom' => $reservation['nom'] ?? $reservation['email'], // Utiliser le nom ou l'email
+        'nombre_places' => $reservation['nombre_places'],
+        'date' => $reservation['date'],
+    ];
+}
+
 // Préparer les données pour le calendrier
 $calendarEvents = [];
 foreach ($events as $event) {
+    $eventId = $event->getIdEvent();
     $date = DateTime::createFromFormat('d/m/Y', $event->getDate());
     $formattedDate = $date ? $date->format('Y-m-d') : $event->getDate();
+
+    // Construire les détails des réservations pour cet événement
+    $reservationDetails = '';
+    if (isset($eventReservations[$eventId])) {
+        $reservationDetails = "Réservations pour le {$event->getDate()}:\n";
+        foreach ($eventReservations[$eventId] as $res) {
+            $reservationDetails .= "- {$res['nom']} ({$res['email']}, {$res['nombre_places']} places)\n";
+        }
+    } else {
+        $reservationDetails = "Aucune réservation pour le {$event->getDate()}.";
+    }
+
     $calendarEvents[] = [
-        'id' => $event->getIdEvent(),
+        'id' => $eventId,
         'title' => $event->getTitre() . ' - ' . $event->getArtiste(),
         'start' => $formattedDate,
-        'description' => $event->getDescription(),
+        'description' => $event->getDescription() . "\n\n" . $reservationDetails,
         'location' => $event->getLieu(),
         'color' => '#602299',
         'textColor' => '#ffffff',
-        'url' => 'modifier.php?id_event=' . $event->getIdEvent()
+        'url' => 'modifier.php?id_event=' . $eventId
     ];
 }
 ?>
@@ -46,7 +95,6 @@ foreach ($events as $event) {
             min-height: 100vh;
         }
 
-        /* Sidebar Styles */
         .sidebar {
             width: 250px;
             background-color: #301934;
@@ -102,7 +150,6 @@ foreach ($events as $event) {
             font-size: 16px;
         }
 
-        /* Main Content */
         .main-content {
             margin-left: 250px;
             flex: 1;
@@ -110,7 +157,6 @@ foreach ($events as $event) {
             width: calc(100% - 250px);
         }
 
-        /* Top Navigation */
         .top-nav {
             display: flex;
             justify-content: space-between;
@@ -142,7 +188,6 @@ foreach ($events as $event) {
             background-color: #f0f7ff;
         }
 
-        /* Calendar Container */
         .calendar-container {
             background-color: white;
             border-radius: 8px;
@@ -158,7 +203,6 @@ foreach ($events as $event) {
             cursor: pointer;
         }
 
-        /* Responsive adjustments */
         @media (max-width: 768px) {
             .sidebar {
                 width: 200px;
@@ -213,7 +257,7 @@ foreach ($events as $event) {
             </li>
             <li class="active">
                 <i class="fas fa-calendar-alt"></i>
-                <a href="afficher.php" style="color: inherit; text-decoration: none;">
+                <a href="afficher.php" style="color: inherit coleta; text-decoration: none;">
                     <span>Events</span>
                 </a>
             </li>
@@ -266,7 +310,6 @@ foreach ($events as $event) {
         </div>
     </main>
 
-    <!-- Scripts nécessaires pour FullCalendar -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
@@ -290,11 +333,13 @@ foreach ($events as $event) {
                 events: <?php echo json_encode($calendarEvents); ?>,
                 eventRender: function(event, element) {
                     element.find('.fc-title').append('<br/><small>' + event.location + '</small>');
-                    element.attr('title', event.description);
+                    var description = event.description.replace(/\n/g, '<br/>');
+                    element.attr('title', description);
                     element.tooltip({
                         container: 'body',
                         placement: 'top',
-                        trigger: 'hover'
+                        trigger: 'hover',
+                        html: true
                     });
                 },
                 eventClick: function(event) {

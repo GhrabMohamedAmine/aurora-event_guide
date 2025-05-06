@@ -13,6 +13,50 @@ $events = Event::getAll();
 // Utiliser ReservationC pour récupérer les réservations avec les détails de l'utilisateur
 $reservationController = new ReservationC();
 $reservations = $reservationController->afficherReservations();
+
+// Calcul des statistiques
+$totalEvents = count($events);
+$totalReservations = count($reservations);
+
+// Calculer le revenu total (somme des totaux de toutes les réservations)
+$totalRevenue = 0;
+foreach ($reservations as $reservation) {
+    $totalRevenue += (float)($reservation['total'] ?? 0);
+}
+
+// Calculer le prix moyen des événements
+$averageEventPrice = $totalEvents > 0 ? array_sum(array_map(function($event) {
+    return (float)$event->getPrix();
+}, $events)) / $totalEvents : 0;
+
+// Trouver l'événement le plus réservé
+$eventReservationCounts = [];
+foreach ($reservations as $reservation) {
+    $eventId = $reservation['id_event'];
+    $eventReservationCounts[$eventId] = ($eventReservationCounts[$eventId] ?? 0) + 1;
+}
+// Trouver l'ID de l'événement avec le plus de réservations
+$mostReservedEventId = !empty($eventReservationCounts) ? array_keys($eventReservationCounts, max($eventReservationCounts))[0] : null;
+$mostReservedEvent = null;
+$mostReservedCount = 0;
+if ($mostReservedEventId) {
+    $mostReservedCount = $eventReservationCounts[$mostReservedEventId];
+    foreach ($events as $event) {
+        if ($event->getIdEvent() == $mostReservedEventId) {
+            $mostReservedEvent = $event;
+            break;
+        }
+    }
+}
+
+// Préparer les données pour le graphique (réservations par événement)
+$chartLabels = [];
+$chartData = [];
+foreach ($events as $event) {
+    $eventId = $event->getIdEvent();
+    $chartLabels[] = htmlspecialchars($event->getTitre());
+    $chartData[] = $eventReservationCounts[$eventId] ?? 0;
+}
 ?>
 
 <!DOCTYPE html>
@@ -23,6 +67,8 @@ $reservations = $reservationController->afficherReservations();
     <title>Aurora Event Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Inclure Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -279,6 +325,74 @@ $reservations = $reservationController->afficherReservations();
             text-overflow: ellipsis;
         }
 
+        /* Style pour la combobox de tri */
+        .sort-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 10px;
+        }
+
+        .sort-label {
+            font-size: 14px;
+            color: #381d51;
+        }
+
+        .sort-select {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+            background-color: white;
+        }
+
+        /* Statistics Section */
+        .statistics-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .statistics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background-color:   #301934;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h4 {
+            font-size: 14px;
+            color:rgb(249, 249, 249);
+            margin-bottom: 10px;
+        }
+
+        .stat-card p {
+            font-size: 20px;
+            font-weight: bold;
+            color:rgb(255, 255, 255);
+            margin: 0;
+        }
+
+        .chart-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .sidebar {
@@ -301,6 +415,13 @@ $reservations = $reservationController->afficherReservations();
             }
             .action-buttons {
                 flex-direction: column;
+            }
+            .sort-container {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            .statistics-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -417,13 +538,54 @@ $reservations = $reservationController->afficherReservations();
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
+        <!-- Statistics Section -->
+        <div class="statistics-container">
+            <h3 style="font-size: 16px; color: #381d51; margin-bottom: 20px;">Statistiques</h3>
+            <div class="statistics-grid">
+                <div class="stat-card">
+                    <h4>Total Événements</h4>
+                    <p><?= htmlspecialchars($totalEvents) ?></p>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Réservations</h4>
+                    <p><?= htmlspecialchars($totalReservations) ?></p>
+                </div>
+                <div class="stat-card">
+                    <h4>Revenu Total</h4>
+                    <p><?= htmlspecialchars(number_format($totalRevenue, 2)) ?> TND</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Prix Moyen Événement</h4>
+                    <p><?= htmlspecialchars(number_format($averageEventPrice, 2)) ?> TND</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Événement le Plus Réservé</h4>
+                    <p>
+                        <?= $mostReservedEvent ? htmlspecialchars($mostReservedEvent->getTitre()) . " ($mostReservedCount rés.)" : 'Aucun' ?>
+                    </p>
+                </div>
+            </div>
+            <!-- Chart -->
+            <div class="chart-container">
+                <canvas id="reservationsChart"></canvas>
+            </div>
+        </div>
+
         <!-- Events Section -->
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="font-size: 16px; color: #381d51;">Liste des Événements</h3>
-                <div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="sort-container">
+                        <span class="sort-label">Trier par:</span>
+                        <select id="sortEvents" class="sort-select">
+                            <option value="default">Ordre par défaut</option>
+                            <option value="date_asc">Date (croissant)</option>
+                            <option value="date_desc">Date (décroissant)</option>
+                        </select>
+                    </div>
                     <a href="ajouter.php" class="btn btn-add">
-                        <i class="fas fa-plus"></i> Ajouter un événement
+                        <i class="fas fa-plus"></i> Ajouter
                     </a>
                     <a href="index.php" class="btn btn-calendar">
                         <i class="fas fa-calendar"></i> Calendrier
@@ -449,13 +611,13 @@ $reservations = $reservationController->afficherReservations();
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="eventsTableBody">
                         <?php foreach ($events as $event): ?>
                             <tr>
                                 <td><?= htmlspecialchars($event->getIdEvent()) ?></td>
                                 <td><?= htmlspecialchars($event->getTitre()) ?></td>
                                 <td><?= htmlspecialchars($event->getArtiste()) ?></td>
-                                <td><?= htmlspecialchars($event->getDate()) ?></td>
+                                <td data-sort="<?= htmlspecialchars($event->getDate()) ?>"><?= htmlspecialchars($event->getDate()) ?></td>
                                 <td><?= htmlspecialchars($event->getHeure() ?? 'N/A') ?></td>
                                 <td><?= htmlspecialchars($event->getLieu()) ?></td>
                                 <td><?= htmlspecialchars($event->getPrix() ?? 'N/A') ?> TND</td>
@@ -519,13 +681,13 @@ $reservations = $reservationController->afficherReservations();
                                 <td><?= htmlspecialchars($reservation['id_reservation']) ?></td>
                                 <td><?= htmlspecialchars($reservation['id_event']) ?></td>
                                 <td><?= htmlspecialchars($reservation['id_user']) ?></td>
-                                <td><?= htmlspecialchars($reservation['nom']) ?></td>
-                                <td><?= htmlspecialchars($reservation['prenom'] ?? '') ?></td>
-                                <td><?= htmlspecialchars($reservation['telephone']) ?></td>
-                                <td><?= htmlspecialchars($reservation['nombre_places']) ?></td>
-                                <td><?= htmlspecialchars($reservation['categorie']) ?></td>
-                                <td><?= htmlspecialchars($reservation['mode_paiement']) ?></td>
-                                <td><?= htmlspecialchars(number_format($reservation['total'], 2)) ?></td>
+                                <td><?= htmlspecialchars($reservation['nom'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars($reservation['prenom'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars($reservation['telephone'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars($reservation['nombre_places'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars($reservation['categorie'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars($reservation['mode_paiement'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars(isset($reservation['total']) ? number_format($reservation['total'], 2) : 'N/A') ?></td>
                                 <td class="action-buttons">
                                     <a href="modifiy.php?id_reservation=<?= $reservation['id_reservation'] ?>" class="btn btn-edit">
                                         <i class="fas fa-edit"></i> Modifier
@@ -545,36 +707,108 @@ $reservations = $reservationController->afficherReservations();
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function confirmDelete() {
-            return confirm('Êtes-vous sûr de vouloir supprimer cet élément?');
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
+            // Fonction de confirmation de suppression
+            function confirmDelete() {
+                return confirm('Êtes-vous sûr de vouloir supprimer cet élément?');
+            }
+
+            // Fonction de recherche
             const searchInput = document.querySelector('.search-bar input');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const tables = document.querySelectorAll('.table');
 
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const tables = document.querySelectorAll('.table');
+                    tables.forEach(table => {
+                        const rows = table.querySelectorAll('tbody tr');
 
-                tables.forEach(table => {
-                    const rows = table.querySelectorAll('tbody tr');
+                        rows.forEach(row => {
+                            let rowText = '';
+                            const cells = row.querySelectorAll('td');
+                            cells.forEach((cell, index) => {
+                                if (index < cells.length - 1) {
+                                    rowText += cell.textContent.toLowerCase() + ' ';
+                                }
+                            });
 
-                    rows.forEach(row => {
-                        let rowText = '';
-                        const cells = row.querySelectorAll('td');
-                        cells.forEach((cell, index) => {
-                            if (index < cells.length - 1) {
-                                rowText += cell.textContent.toLowerCase() + ' ';
+                            if (rowText.includes(searchTerm)) {
+                                row.style.display = '';
+                            } else {
+                                row.style.display = 'none';
                             }
                         });
-
-                        if (rowText.includes(searchTerm)) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
                     });
                 });
+            }
+
+            // Fonction de tri des événements
+            const sortSelect = document.getElementById('sortEvents');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', function() {
+                    const sortValue = this.value;
+                    const tbody = document.getElementById('eventsTableBody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+                    rows.sort((a, b) => {
+                        const dateA = new Date(a.querySelector('td[data-sort]').getAttribute('data-sort'));
+                        const dateB = new Date(b.querySelector('td[data-sort]').getAttribute('data-sort'));
+
+                        if (sortValue === 'date_asc') {
+                            return dateA - dateB;
+                        } else if (sortValue === 'date_desc') {
+                            return dateB - dateA;
+                        } else {
+                            // Ordre par défaut (par ID)
+                            const idA = parseInt(a.cells[0].textContent);
+                            const idB = parseInt(b.cells[0].textContent);
+                            return idA - idB;
+                        }
+                    });
+
+                    // Réinsérer les lignes triées
+                    tbody.innerHTML = '';
+                    rows.forEach(row => tbody.appendChild(row));
+                });
+            }
+
+            // Créer le graphique avec Chart.js
+            const ctx = document.getElementById('reservationsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: <?= json_encode($chartLabels) ?>,
+                    datasets: [{
+                        label: 'Nombre de Réservations par Événement',
+                        data: <?= json_encode($chartData) ?>,
+                        backgroundColor: 'rgba(56, 29, 81, 0.6)',
+                        borderColor: 'rgba(56, 29, 81, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Nombre de Réservations'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Événements'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
             });
         });
     </script>
