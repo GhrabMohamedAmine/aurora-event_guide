@@ -5,13 +5,13 @@ require_once __DIR__.'/../../controller/SponsorController.php';
 
 $controller = new DemandeSponsoringController();
 $sponsorController = new SponsorController();
-$sponsors = $sponsorController->getAll();
+$sponsors = $sponsorController->getAllSponsors();
 
 $id = $_GET['id'];
 $demande = $controller->getById($id);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$sponsorController->exists($_POST['id_sponsor'])) {
+    if (!$sponsorController->getSponsorById($_POST['id_sponsor'])) {
         echo "<script>alert('Le sponsor sélectionné n\'existe pas!');</script>";
     } else {
         $result = $controller->update(

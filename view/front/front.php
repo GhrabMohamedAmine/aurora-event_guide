@@ -1011,6 +1011,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1.4rem;
             font-weight: 700;
         }
+        
+        .sponsor-photo-container {
+            text-align: center;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            overflow: hidden;
+            max-height: 200px;
+        }
+        
+        .sponsor-photo {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .sponsorship-card:hover .sponsor-photo {
+            transform: scale(1.05);
+        }
 
         .sponsorship-details p {
             margin: 12px 0;
@@ -1447,15 +1468,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         foreach ($sponsors as $sponsor) {
                             echo '<div class="sponsorship-card">';
                             echo '<div class="sponsorship-header">';
+                            
+                            // Add sponsor photo if available
+                            if (!empty($sponsor['photo'])) {
+                                echo '<div class="sponsor-photo-container">';
+                                echo '<img src="../../' . htmlspecialchars($sponsor['photo']) . '" alt="' . htmlspecialchars($sponsor['entreprise']) . '" class="sponsor-photo">';
+                                echo '</div>';
+                            }
+                            
                             echo '<h4>' . htmlspecialchars($sponsor['entreprise']) . '</h4>';
                             echo '</div>';
                             echo '<div class="sponsorship-details">';
                             echo '<p><i class="fas fa-envelope"></i><strong>Email:</strong> ' . htmlspecialchars($sponsor['mail']) . '</p>';
                             echo '<p><i class="fas fa-phone"></i><strong>Téléphone:</strong> ' . htmlspecialchars($sponsor['telephone']) . '</p>';
-                            echo '</div>';
-                            echo '<div class="sponsor-actions">';
-                            echo '<a href="edit_sponsor_front.php?id=' . $sponsor['id_sponsor'] . '" class="action-btn edit" title="Modifier"><i class="fas fa-edit"></i></a>';
-                            echo '<button class="action-btn delete" title="Supprimer" onclick="confirmDelete(' . $sponsor['id_sponsor'] . ')"><i class="fas fa-trash"></i></button>';
                             echo '</div>';
                             echo '</div>';
                         }
@@ -1468,7 +1493,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ?>
                 </div>
                 <div style="text-align: center; margin-top: 50px;">
-                    <a href="add_sponsor_front.php" class="btn btn-purple"><i class="fas fa-plus"></i> Ajouter un Nouveau Sponsor</a>
+                    <a href="add_sponsor_front.php" class="btn btn-purple"><i class="fas fa-plus"></i> vous pouvez devenir un sponsor?</a>
                 </div>
             </div>
             

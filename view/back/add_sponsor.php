@@ -3,11 +3,35 @@ require_once '../../controller/SponsorController.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $controller = new SponsorController();
-    if ($controller->add(
+    
+    // Handle photo upload
+    $photo = null;
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = __DIR__ . '/../../uploads/sponsors/';
+        
+        // Create directory if it doesn't exist
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+        
+        // Generate unique name for the file
+        $fileName = uniqid('sponsor_') . '_' . basename($_FILES['photo']['name']);
+        $uploadFile = $uploadDir . $fileName;
+        
+        // Move uploaded file to target directory
+        if (move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
+            $photo = 'uploads/sponsors/' . $fileName;
+        } else {
+            $error = "Erreur lors de l'upload de l'image";
+        }
+    }
+    
+    if ($controller->createSponsor(
         $_POST['nom_sponsor'],
         $_POST['entreprise'],
         $_POST['mail'],
-        $_POST['telephone']
+        $_POST['telephone'],
+        $photo
     )) {
         header('Location: sponsoring.php');
         exit();
@@ -139,6 +163,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-color: #381d51;
             box-shadow: 0 0 0 2px rgba(56, 29, 81, 0.2);
         }
+        
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .file-preview {
+            max-width: 150px;
+            max-height: 150px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
 
         .form-buttons {
             display: flex;
@@ -240,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="form-container">
-            <form method="POST" id="sponsorForm">
+            <form method="POST" id="sponsorForm" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="nom_sponsor">Nom du Sponsor</label>
                     <input type="text" id="nom_sponsor" name="nom_sponsor" class="form-control">
@@ -259,6 +297,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label for="telephone">Téléphone</label>
                     <input type="text" id="telephone" name="telephone" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="photo"><i class="fas fa-image"></i> Photo (Logo ou Représentant)</label>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="photo" name="photo" accept="image/*" class="form-control">
+                        <img id="photoPreview" class="file-preview" src="#" alt="Aperçu de l'image">
+                    </div>
                 </div>
                 
                 <div class="form-buttons">
@@ -383,7 +429,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Initialiser la validation en temps réel
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('sponsorForm');
-        const fields = form.querySelectorAll('input');
+        const fields = form.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"]');
+        const photoInput = document.getElementById('photo');
+        const photoPreview = document.getElementById('photoPreview');
+        
+        // Show image preview when a file is selected
+        photoInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    photoPreview.src = e.target.result;
+                    photoPreview.style.display = 'block';
+                }
+                
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
         
         // Configurer la validation en temps réel pour chaque champ
         fields.forEach(field => {

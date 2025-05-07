@@ -10,7 +10,7 @@ if (!isset($_GET['id'])) {
 }
 
 $id = $_GET['id'];
-$sponsor = $controller->getById($id);
+$sponsor = $controller->getSponsorById($id);
 
 if (!$sponsor) {
     header('Location: front.php');
@@ -19,12 +19,41 @@ if (!$sponsor) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        // Handle photo upload
+        $photo = $sponsor->getPhoto(); // Keep current photo by default
+        
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../../uploads/sponsors/';
+            
+            // Create directory if it doesn't exist
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            // Generate unique name for the file
+            $fileName = uniqid('sponsor_') . '_' . basename($_FILES['photo']['name']);
+            $uploadFile = $uploadDir . $fileName;
+            
+            // Move uploaded file to target directory
+            if (move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
+                // If there was a previous photo, we could delete it here
+                // if ($sponsor->getPhoto()) {
+                //     unlink(__DIR__ . '/../../' . $sponsor->getPhoto());
+                // }
+                
+                $photo = 'uploads/sponsors/' . $fileName;
+            } else {
+                $error = "Erreur lors de l'upload de l'image";
+            }
+        }
+        
         $result = $controller->updateFront(
             $id,
             $_POST['nom_sponsor'],
             $_POST['entreprise'],
             $_POST['mail'],
-            $_POST['telephone']
+            $_POST['telephone'],
+            $photo
         );
 
         if ($result) {
@@ -129,6 +158,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             outline: none;
             border-color: var(--light-purple);
         }
+        
+        .form-group input[type="file"] {
+            padding: 8px;
+        }
+        
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .current-photo {
+            max-width: 150px;
+            max-height: 150px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: block;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        
+        .file-preview {
+            max-width: 150px;
+            max-height: 150px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+        }
 
         .error-message {
             background-color: #ffe6e6;
@@ -217,25 +273,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="">
+            <form method="POST" action="" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="nom_sponsor"><i class="fas fa-user"></i> Nom du sponsor</label>
-                    <input type="text" id="nom_sponsor" name="nom_sponsor" value="<?php echo htmlspecialchars($sponsor['nom_sponsor']); ?>" required>
+                    <input type="text" id="nom_sponsor" name="nom_sponsor" value="<?php echo htmlspecialchars($sponsor->getNomSponsor()); ?>" required>
                 </div>
 
                 <div class="form-group">
                     <label for="entreprise"><i class="fas fa-building"></i> Nom de l'entreprise</label>
-                    <input type="text" id="entreprise" name="entreprise" value="<?php echo htmlspecialchars($sponsor['entreprise']); ?>" required>
+                    <input type="text" id="entreprise" name="entreprise" value="<?php echo htmlspecialchars($sponsor->getEntreprise()); ?>" required>
                 </div>
 
                 <div class="form-group">
                     <label for="mail"><i class="fas fa-envelope"></i> Email</label>
-                    <input type="email" id="mail" name="mail" value="<?php echo htmlspecialchars($sponsor['mail']); ?>" required>
+                    <input type="email" id="mail" name="mail" value="<?php echo htmlspecialchars($sponsor->getMail()); ?>" required>
                 </div>
 
                 <div class="form-group">
                     <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
-                    <input type="tel" id="telephone" name="telephone" value="<?php echo htmlspecialchars($sponsor['telephone']); ?>" required>
+                    <input type="tel" id="telephone" name="telephone" value="<?php echo htmlspecialchars($sponsor->getTelephone()); ?>" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="photo"><i class="fas fa-image"></i> Photo (Logo ou Représentant)</label>
+                    <div class="file-upload-wrapper">
+                        <?php if ($sponsor->getPhoto()): ?>
+                            <p>Photo actuelle:</p>
+                            <img src="../../<?php echo htmlspecialchars($sponsor->getPhoto()); ?>" alt="Photo actuelle" class="current-photo">
+                        <?php else: ?>
+                            <p>Aucune photo actuelle</p>
+                        <?php endif; ?>
+                        
+                        <input type="file" id="photo" name="photo" accept="image/*">
+                        <img id="photoPreview" class="file-preview" src="#" alt="Aperçu de l'image">
+                    </div>
                 </div>
 
                 <div class="btn-container">
@@ -249,5 +320,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const photoInput = document.getElementById('photo');
+            const photoPreview = document.getElementById('photoPreview');
+
+            // Show image preview when a file is selected
+            photoInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        photoPreview.src = e.target.result;
+                        photoPreview.style.display = 'block';
+                    }
+                    
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+        });
+    </script>
 </body>
 </html>

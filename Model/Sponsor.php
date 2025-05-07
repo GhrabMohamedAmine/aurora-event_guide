@@ -7,6 +7,7 @@ class Sponsor {
     private $entreprise;
     private $mail;
     private $telephone;
+    private $photo;
 
     // Getters
     public function getIdSponsor() { return $this->id_sponsor; }
@@ -14,6 +15,7 @@ class Sponsor {
     public function getEntreprise() { return $this->entreprise; }
     public function getMail() { return $this->mail; }
     public function getTelephone() { return $this->telephone; }
+    public function getPhoto() { return $this->photo; }
 
     // Setters
     public function setIdSponsor($id) { $this->id_sponsor = $id; }
@@ -21,5 +23,6 @@ class Sponsor {
     public function setEntreprise($entreprise) { $this->entreprise = $entreprise; }
     public function setMail($mail) { $this->mail = $mail; }
     public function setTelephone($telephone) { $this->telephone = $telephone; }
+    public function setPhoto($photo) { $this->photo = $photo; }
 
 }

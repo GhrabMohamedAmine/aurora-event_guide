@@ -4,7 +4,7 @@ require_once '../../controller/SponsorController.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $controller = new SponsorController();
     if ($_POST['action'] === 'delete' && isset($_POST['id'])) {
-        $controller->delete($_POST['id']);
+        $controller->deleteSponsor($_POST['id']);
         header('Location: sponsoring.php');
         exit();
     }
@@ -197,6 +197,26 @@ $sponsors = $controller->getSponsors();
 
         .data-table tr:hover {
             background-color: #f5f5f5;
+        }
+        
+        .sponsor-photo {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .no-photo {
+            width: 60px;
+            height: 60px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 20px;
         }
 
         /* Action Buttons */
@@ -398,6 +418,7 @@ $sponsors = $controller->getSponsors();
                         <th>Entreprise</th>
                         <th>Email</th>
                         <th>Téléphone</th>
+                        <th>Photo</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -408,6 +429,15 @@ $sponsors = $controller->getSponsors();
                         <td><?= htmlspecialchars($sponsor['entreprise']) ?></td>
                         <td><?= htmlspecialchars($sponsor['mail']) ?></td>
                         <td><?= htmlspecialchars($sponsor['telephone']) ?></td>
+                        <td>
+                            <?php if (!empty($sponsor['photo'])): ?>
+                                <img src="../../<?= htmlspecialchars($sponsor['photo']) ?>" alt="Photo" class="sponsor-photo">
+                            <?php else: ?>
+                                <div class="no-photo">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            <?php endif; ?>
+                        </td>
                         <td class="action-buttons">
                             <a href="modifier_sponsor.php?id=<?= $sponsor['id_sponsor'] ?>" class="btn btn-edit">
                                 <i class="fas fa-edit"></i>

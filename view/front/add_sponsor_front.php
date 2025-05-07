@@ -6,14 +6,74 @@ $controller = new SponsorController();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        // Handle photo upload
+        $photo = null;
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../../uploads/sponsors/';
+            
+            // Create directory if it doesn't exist
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            // Generate unique name for the file
+            $fileName = uniqid('sponsor_') . '_' . basename($_FILES['photo']['name']);
+            $uploadFile = $uploadDir . $fileName;
+            
+            // Move uploaded file to target directory
+            if (move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
+                $photo = 'uploads/sponsors/' . $fileName;
+            } else {
+                $error = "Erreur lors de l'upload de l'image";
+            }
+        }
+        
         $result = $controller->createSponsor(
             $_POST['nom_sponsor'],
             $_POST['entreprise'],
             $_POST['mail'],
-            $_POST['telephone']
+            $_POST['telephone'],
+            $photo
         );
 
         if ($result) {
+            // Send data to webhook
+            $webhookUrl = 'https://chedliss.app.n8n.cloud/webhook/9a6af1da-1d91-4171-bea7-8eaa01271066';
+            $webhookData = [
+                'nom_sponsor' => $_POST['nom_sponsor'],
+                'entreprise' => $_POST['entreprise'],
+                'email' => $_POST['mail'],
+                'photo' => $photo
+            ];
+            
+            // Initialize cURL session
+            $ch = curl_init($webhookUrl);
+            
+            // Set cURL options
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($webhookData));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10); // 10 seconds timeout
+            
+            // Execute cURL request
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            
+            // Check for errors
+            if (curl_errno($ch)) {
+                // Log webhook error but continue with success response to user
+                error_log('Webhook Error: ' . curl_error($ch));
+            } elseif ($httpCode < 200 || $httpCode >= 300) {
+                // Log webhook HTTP error but continue with success response
+                error_log('Webhook HTTP Error: Status ' . $httpCode . ', Response: ' . $response);
+            }
+            
+            // Close cURL session
+            curl_close($ch);
+            
             header('Location: front.php?success=1');
             exit();
         } else {
@@ -116,6 +176,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             outline: none;
             border-color: var(--light-purple);
         }
+        
+        .form-group input[type="file"] {
+            padding: 8px;
+        }
+        
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .file-preview {
+            max-width: 150px;
+            max-height: 150px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+        }
 
         .error-message {
             background-color: #ffe6e6;
@@ -169,6 +246,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transform: translateY(-2px);
         }
 
+        /* Loading spinner */
+        .loading-spinner {
+            display: none;
+            margin-left: 10px;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn.submitting {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .btn.submitting .loading-spinner {
+            display: inline-block;
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 20px;
@@ -204,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="">
+            <form method="POST" action="" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="nom_sponsor"><i class="fas fa-user"></i> Nom du Sponsor</label>
                     <input type="text" id="nom_sponsor" name="nom_sponsor" placeholder="Nom du sponsor" required>
@@ -224,10 +327,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
                     <input type="tel" id="telephone" name="telephone" placeholder="Numéro de téléphone" required>
                 </div>
+                
+                <div class="form-group">
+                    <label for="photo"><i class="fas fa-image"></i> Photo (Logo ou Représentant)</label>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="photo" name="photo" accept="image/*">
+                        <img id="photoPreview" class="file-preview" src="#" alt="Aperçu de l'image">
+                    </div>
+                </div>
 
                 <div class="btn-container">
-                    <button type="submit" class="btn btn-purple">
+                    <button type="submit" class="btn btn-purple" id="submitBtn">
                         <i class="fas fa-save"></i> Enregistrer
+                        <span class="loading-spinner"></span>
                     </button>
                     <a href="front.php" class="btn btn-light">
                         <i class="fas fa-times"></i> Annuler
@@ -236,5 +348,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const submitBtn = document.getElementById('submitBtn');
+            const photoInput = document.getElementById('photo');
+            const photoPreview = document.getElementById('photoPreview');
+
+            // Show image preview when a file is selected
+            photoInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        photoPreview.src = e.target.result;
+                        photoPreview.style.display = 'block';
+                    }
+                    
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+
+            form.addEventListener('submit', function(e) {
+                // Regular form validation is already handled by validation.js
+                // This is just to show the loading indicator
+                submitBtn.classList.add('submitting');
+            });
+        });
+    </script>
 </body>
 </html>

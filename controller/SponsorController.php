@@ -28,6 +28,7 @@ class SponsorController {
         $sponsor->setEntreprise($row['entreprise']);
         $sponsor->setMail($row['mail']);
         $sponsor->setTelephone($row['telephone']);
+        $sponsor->setPhoto($row['photo'] ?? null);
         
         return $sponsor;
     }
@@ -45,6 +46,7 @@ class SponsorController {
             $sponsor->setEntreprise($row['entreprise']);
             $sponsor->setMail($row['mail']);
             $sponsor->setTelephone($row['telephone']);
+            $sponsor->setPhoto($row['photo'] ?? null);
             
             $sponsors[] = $sponsor;
         }
@@ -78,14 +80,15 @@ class SponsorController {
         }
     }
     
-    public function createSponsor($nom_sponsor, $entreprise, $mail, $telephone) {
-        $query = "INSERT INTO sponsor (nom_sponsor, entreprise, mail, telephone) VALUES (?, ?, ?, ?)";
+    public function createSponsor($nom_sponsor, $entreprise, $mail, $telephone, $photo = null) {
+        $query = "INSERT INTO sponsor (nom_sponsor, entreprise, mail, telephone, photo) VALUES (?, ?, ?, ?, ?)";
         
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(1, $nom_sponsor, PDO::PARAM_STR);
         $stmt->bindParam(2, $entreprise, PDO::PARAM_STR);
         $stmt->bindParam(3, $mail, PDO::PARAM_STR);
         $stmt->bindParam(4, $telephone, PDO::PARAM_STR);
+        $stmt->bindParam(5, $photo, PDO::PARAM_STR);
         
         if ($stmt->execute()) {
             return $this->conn->lastInsertId();
@@ -94,30 +97,32 @@ class SponsorController {
         return false;
     }
     
-    public function updateSponsor($id_sponsor, $nom_sponsor, $entreprise, $mail, $telephone) {
-        $query = "UPDATE sponsor SET nom_sponsor = ?, entreprise = ?, mail = ?, telephone = ? WHERE id_sponsor = ?";
+    public function updateSponsor($id_sponsor, $nom_sponsor, $entreprise, $mail, $telephone, $photo = null) {
+        $query = "UPDATE sponsor SET nom_sponsor = ?, entreprise = ?, mail = ?, telephone = ?, photo = ? WHERE id_sponsor = ?";
         
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(1, $nom_sponsor, PDO::PARAM_STR);
         $stmt->bindParam(2, $entreprise, PDO::PARAM_STR);
         $stmt->bindParam(3, $mail, PDO::PARAM_STR);
         $stmt->bindParam(4, $telephone, PDO::PARAM_STR);
-        $stmt->bindParam(5, $id_sponsor, PDO::PARAM_INT);
+        $stmt->bindParam(5, $photo, PDO::PARAM_STR);
+        $stmt->bindParam(6, $id_sponsor, PDO::PARAM_INT);
         
         return $stmt->execute();
     }
     
     // Adding updateFront method needed by the application
-    public function updateFront($id, $nom_sponsor, $entreprise, $mail, $telephone) {
+    public function updateFront($id, $nom_sponsor, $entreprise, $mail, $telephone, $photo = null) {
         try {
-            $query = "UPDATE sponsor SET nom_sponsor = ?, entreprise = ?, mail = ?, telephone = ? WHERE id_sponsor = ?";
+            $query = "UPDATE sponsor SET nom_sponsor = ?, entreprise = ?, mail = ?, telephone = ?, photo = ? WHERE id_sponsor = ?";
             
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(1, $nom_sponsor, PDO::PARAM_STR);
             $stmt->bindParam(2, $entreprise, PDO::PARAM_STR);
             $stmt->bindParam(3, $mail, PDO::PARAM_STR);
             $stmt->bindParam(4, $telephone, PDO::PARAM_STR);
-            $stmt->bindParam(5, $id, PDO::PARAM_INT);
+            $stmt->bindParam(5, $photo, PDO::PARAM_STR);
+            $stmt->bindParam(6, $id, PDO::PARAM_INT);
             
             return $stmt->execute();
         } catch (Exception $e) {
