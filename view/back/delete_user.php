@@ -3,7 +3,11 @@ require_once '../../config.php';
 require_once '../../controller/user_controller.php';
 
 if (isset($_POST['id'])) {
+<<<<<<< HEAD
     $db = getDB();
+=======
+    $db = config::getConnexion();
+>>>>>>> user
     $userController = new UserController($db);
     
     $userId = $_POST['id'];

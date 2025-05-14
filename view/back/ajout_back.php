@@ -5,7 +5,11 @@ require_once __DIR__ . '/../../controller/user_controller.php';
 $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+<<<<<<< HEAD
     $db = getDB();
+=======
+    $db = config::getConnexion();
+>>>>>>> user
     $userController = new UserController($db);
     
     $result = $userController->createUser($_POST);
@@ -35,11 +39,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="../assets/images/logo.png" alt="Aurora Event Logo">
             <div class="sidebar-header-text">
                 <h1>Aurora Event</h1>
+<<<<<<< HEAD
                 body {
             display: flex;
             background-color: #602299;
             min-height: 100vh;
         }
+=======
+>>>>>>> user
             </div>
         </div>
         <ul class="sidebar-menu">

@@ -4,7 +4,11 @@ require_once '../../controller/user_controller.php';
 
 // Démarrage de la session
 session_start();
+<<<<<<< HEAD
 $db = getDB();
+=======
+$db = config::getConnexion();
+>>>>>>> user
 $userController = new UserController($db);
 
 // Get user_id from URL and verify it exists
@@ -30,6 +34,10 @@ $userData = [
     'email' => $user->getEmail(),
     'phone' => $user->getTelephone(),
     'birthdate' => $user->getDateNaissance(),
+<<<<<<< HEAD
+=======
+
+>>>>>>> user
 ];
 
 // Traitement du formulaire de mise à jour
@@ -112,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+<<<<<<< HEAD
     <style>
         /* General Body Styling */
         body {
@@ -333,6 +342,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
             }
         }
     </style>
+=======
+    <link rel="stylesheet" href="../assets/css/logout.css" />
+>>>>>>> user
 </head>
 <body>
     <!-- Affichage des messages de succès/erreur -->
@@ -1055,6 +1067,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<<<<<<< HEAD
+=======
+    <script src="../assets/js/main.js"></script>
+>>>>>>> user
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Account update form validation

@@ -254,10 +254,20 @@ function resetPassword() {
         return;
     }
     
+<<<<<<< HEAD
     // Stocker le mot de passe en clair (non recommandé, mais demandé)
     try {
         $stmt = $db->prepare("UPDATE users SET mot_de_pass = :password WHERE email = :email");
         $stmt->bindParam(':password', $password);
+=======
+    // Hasher le nouveau mot de passe
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    
+    // Mettre à jour le mot de passe dans la base de données
+    try {
+        $stmt = $db->prepare("UPDATE users SET mot_de_pass = :password WHERE email = :email");
+        $stmt->bindParam(':password', $hashedPassword);
+>>>>>>> user
         $stmt->bindParam(':email', $email);
         $stmt->execute();
         

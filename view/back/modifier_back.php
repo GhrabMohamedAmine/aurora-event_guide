@@ -2,7 +2,11 @@
 require_once '../../config.php';
 require_once '../../controller/user_controller.php';
 
+<<<<<<< HEAD
 $db = getDB();
+=======
+$db = config::getConnexion();
+>>>>>>> user
 $userController = new UserController($db);
 $userId = isset($_GET['id']) ? $_GET['id'] : null;
 
@@ -20,11 +24,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id_user'];
     $result = $userController->updateUser($id, $_POST);
     if ($result['success']) {
+<<<<<<< HEAD
         $_SESSION['success'] = "Utilisateur modifié avec succès";
         header('Location: user_back.php');
         exit();
     } else {
         $_SESSION['error'] = "Erreur lors de la mise à jour";
+=======
+        header('Location: user_back.php?message=User updated successfully');
+        exit();
+>>>>>>> user
     }
 }
 ?>
@@ -36,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modifier Utilisateur - Aurora</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<<<<<<< HEAD
     <style>
         * {
             margin: 0;
@@ -328,6 +338,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     </style>
+=======
+    <link rel="stylesheet" href="../assets/css/style_back.css">
+>>>>>>> user
 </head>
 <body>
     <!-- Sidebar -->
@@ -340,36 +353,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <ul class="sidebar-menu">
             <li>
+<<<<<<< HEAD
                 <a href="index.html" style="color: inherit; text-decoration: none;">
                     <i class="fas fa-tachometer-alt"></i>
+=======
+                <i class="fas fa-tachometer-alt"></i>
+                <a href="index.html" style="color: inherit; text-decoration: none;">
+>>>>>>> user
                     <span>Dashboard</span>
                 </a>
             </li>
             <li class="active">
+<<<<<<< HEAD
                 <a href="user_back.php" style="color: inherit; text-decoration: none;">
                     <i class="fas fa-users"></i>
+=======
+                <i class="fas fa-users"></i>
+                <a href="user_back.php" style="color: inherit; text-decoration: none;">
+>>>>>>> user
                     <span>Users</span>
                 </a>
             </li>
             <li>
+<<<<<<< HEAD
                 <a href="afficher.php" style="color: inherit; text-decoration: none;">
                     <i class="fas fa-calendar-alt"></i>
+=======
+                <i class="fas fa-calendar-alt"></i>
+                <a href="afficher.php" style="color: inherit; text-decoration: none;">
+>>>>>>> user
                     <span>Events</span>
                 </a>
             </li>
             <li>
+<<<<<<< HEAD
                 <a href="Products.php" style="color: inherit; text-decoration: none;">
                     <i class="fas fa-box"></i>
+=======
+                <i class="fas fa-box"></i>
+                <a href="Products.php" style="color: inherit; text-decoration: none;">
+>>>>>>> user
                     <span>Products</span>
                 </a>
             </li>
             <li>
+<<<<<<< HEAD
                 <a href="Publications.php" style="color: inherit; text-decoration: none;">
                     <i class="fas fa-book"></i>
+=======
+                <i class="fas fa-book"></i>
+                <a href="Publications.php" style="color: inherit; text-decoration: none;">
+>>>>>>> user
                     <span>Publications</span>
                 </a>
             </li>
             <li>
+<<<<<<< HEAD
                 <a href="Reclamations.php" style="color: inherit; text-decoration: none;">
                     <i class="fas fa-exclamation-circle"></i>
                     <span>Sponsoring</span>
@@ -378,6 +417,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <li>
                 <a href="logout.php" style="color: inherit; text-decoration: none;">
                     <i class="fas fa-sign-out-alt"></i>
+=======
+                <i class="fas fa-exclamation-circle"></i>
+                <a href="Reclamations.php" style="color: inherit; text-decoration: none;">
+                    <span>sponsoring</span>
+                </a>
+            </li>
+            <li>
+                <i class="fas fa-sign-out-alt"></i>
+                <a href="logout.php" style="color: inherit; text-decoration: none;">
+>>>>>>> user
                     <span>Déconnexion</span>
                 </a>
             </li>
@@ -388,6 +437,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="main-content">
         <div class="top-nav">
             <div class="search-container">
+<<<<<<< HEAD
                 <h2 style="font-size: 18px; color: #381d51;">Modifier l'utilisateur #<?php echo htmlspecialchars($userId); ?></h2>
                 <div class="search-bar">
                     <i class="fas fa-search"></i>
@@ -442,11 +492,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label for="genre">Genre</label>
                     <select id="genre" name="genre" required>
+=======
+                <h2 style="font-size: 18px; color: #381d51;">Modifier un utilisateur</h2>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <div id="flash-message-container"></div>
+            
+            <form method="POST" action="" id="edit-user-form" onsubmit="return validateForm(this)">
+                <input type="hidden" name="id_user" value="<?php echo htmlspecialchars($userId); ?>">
+                
+                <div class="form-group">
+                    <label>CIN</label>
+                    <input type="text" name="cin" value="<?php echo isset($user) ? htmlspecialchars($user->getCin()) : ''; ?>">
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nom</label>
+                    <input type="text" name="nom" value="<?php echo isset($user) ? htmlspecialchars($user->getNom()) : ''; ?>">
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Prénom</label>
+                    <input type="text" name="prenom" value="<?php echo isset($user) ? htmlspecialchars($user->getPrenom()) : ''; ?>">
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Genre</label>
+                    <select name="genre">
+>>>>>>> user
                         <option value="">Sélectionnez un genre</option>
                         <option value="homme" <?php echo (isset($user) && $user->getGenre() === 'homme') ? 'selected' : ''; ?>>Homme</option>
                         <option value="femme" <?php echo (isset($user) && $user->getGenre() === 'femme') ? 'selected' : ''; ?>>Femme</option>
                         <option value="autre" <?php echo (isset($user) && $user->getGenre() === 'autre') ? 'selected' : ''; ?>>Autre</option>
                     </select>
+<<<<<<< HEAD
                     <div class="error-message" id="genre-error"></div>
                 </div>
                 
@@ -459,11 +543,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label for="type">Type</label>
                     <select id="type" name="type" required>
+=======
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Date de Naissance</label>
+                    <input type="date" name="date_naissance" value="<?php echo isset($user) ? htmlspecialchars($user->getDateNaissance()) : ''; ?>">
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Type</label>
+                    <select name="type">
+>>>>>>> user
                         <option value="">Sélectionnez un type</option>
                         <option value="admin" <?php echo (isset($user) && $user->getType() === 'admin') ? 'selected' : ''; ?>>Admin</option>
                         <option value="organisateur" <?php echo (isset($user) && $user->getType() === 'organisateur') ? 'selected' : ''; ?>>Organisateur</option>
                         <option value="participant" <?php echo (isset($user) && $user->getType() === 'participant') ? 'selected' : ''; ?>>Participant</option>
                     </select>
+<<<<<<< HEAD
                     <div class="error-message" id="type-error"></div>
                 </div>
                 
@@ -492,11 +591,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <a href="user_back.php" class="btn btn-secondary">
                         <i class="fas fa-list"></i> Voir la liste
                     </a>
+=======
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Téléphone</label>
+                    <input type="text" name="telephone" value="<?php echo isset($user) ? htmlspecialchars($user->getTelephone()) : ''; ?>">
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="text" name="email" value="<?php echo isset($user) ? htmlspecialchars($user->getEmail()) : ''; ?>">
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nouveau mot de passe (laisser vide pour ne pas modifier)</label>
+                    <input type="password" name="mot_de_pass">
+                    <span class="error-message"></span>
+                </div>
+                
+                <div class="form-group">
+                    <button type="submit" class="submit-btn">Enregistrer les modifications</button>
+>>>>>>> user
                 </div>
             </form>
         </div>
     </main>
 
+<<<<<<< HEAD
     <script>
         function showError(inputElement, errorId, message) {
             const errorElement = document.getElementById(errorId);
@@ -670,5 +795,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }, 5000);
         });
     </script>
+=======
+    <footer class="site-footer">
+        <div class="social-links">
+            <a href="#" target="_blank"><i class="fab fa-facebook"></i></a>
+            <a href="#" target="_blank"><i class="fab fa-instagram"></i></a>
+            <a href="#" target="_blank"><i class="fas fa-globe"></i></a>
+        </div>
+        <p class="footer-text">© 2025 Aurora Event. All rights reserved.</p>
+    </footer>
+
+    <script src="../assets/js/script_back.js"></script>
+>>>>>>> user
 </body>
 </html>

@@ -49,7 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
 
 // Handle login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+<<<<<<< HEAD
   $db = getDB();
+=======
+    $db = config::getConnexion();
+>>>>>>> user
     $userController = new UserController($db);
     
     // Handle login
@@ -311,10 +315,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                   </form>
                 </div>
+<<<<<<< HEAD
       
                 <!-- Carte Google Maps -->
                 <div class="tab-pane fade" id="nav-ContactMap" role="tabpanel" aria-labelledby="nav-ContactMap-tab">
                   <iframe class="google-map" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3192.214759901409!2d10.211830!3d36.8831541!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12fd34d79fb4d121%3A0x2934de95ebfdc9c8!2sZone%20Industrielle%20Chotrana%20II%2C%20B.P.%20160%20P%C3%B4le%20Technologique%20El%20Ghazela%202083%20Ariana%20Tunis!5e0!3m2!1sfr!2stn!4v1670344209509!5m2!1sfr!2stn" width="100%" height="450" style="border: 0" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+=======
+>>>>>>> user
                 </div>
               </div>
             </div>
@@ -533,6 +540,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   ?>
                   <!-- Étape 1: Login Form -->
                   <div id="login-step1" style="display: block;">
+<<<<<<< HEAD
                   <form method="POST" action="accueilleinterface.php" id="loginForm" onsubmit="return validateLoginForm(event)">
                     <div class="form-group">
                       <label class="form-label aurora-label">
@@ -546,12 +554,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </label>
                         <input type="password" class="form-control aurora-input" name="password" id="loginPassword" placeholder="••••••••">
                     </div>
+=======
+                    <form method="POST" action="accueilleinterface.php" id="loginForm" onsubmit="return validateLoginForm(event)">
+                      <div class="form-group">
+                        <label class="form-label aurora-label">
+                            <i class="bi bi-envelope-fill me-2"></i>Adresse email
+                        </label>
+                        <input type="email" class="form-control aurora-input" name="email" id="loginEmail" placeholder="votre@email.com">
+                      </div>
+                      <div class="form-group mb-4">
+                          <label class="form-label aurora-label">
+                              <i class="bi bi-lock-fill me-2"></i>Mot de passe
+                          </label>
+                          <input type="password" class="form-control aurora-input" name="password" id="loginPassword" placeholder="••••••••">
+                      </div>
+>>>>>>> user
                       <div class="d-grid">
                         <button type="button" id="proceedToCaptcha" class="btn aurora-btn py-3">
                           <i class="bi bi-shield-check me-2"></i>Continuer
                         </button>
                       </div>
+<<<<<<< HEAD
                     <input type="hidden" name="action" value="login">
+=======
+                      <input type="hidden" name="action" value="login">
+>>>>>>> user
                     </form>
                   </div>
                   
@@ -580,8 +607,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <div class="d-grid gap-2">
                       <button type="button" id="verify-captcha" class="btn aurora-btn py-3">
+<<<<<<< HEAD
                       <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
                     </button>
+=======
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+                      </button>
+>>>>>>> user
                       <button type="button" id="backToLogin" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-2"></i>Retour
                       </button>
@@ -1014,6 +1046,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Valider les champs de connexion
                     const email = document.getElementById('loginEmail').value.trim();
                     const password = document.getElementById('loginPassword').value.trim();
+<<<<<<< HEAD
             let isValid = true;
             
             // Réinitialiser les messages d'erreur
@@ -1035,6 +1068,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             if (isValid) {
+=======
+                    let isValid = true;
+                    
+                    // Réinitialiser les messages d'erreur
+                    clearErrors();
+                    
+                    // Valider l'email
+                    if (!email) {
+                        showError(document.getElementById('loginEmail'), 'L\'email est requis');
+                        isValid = false;
+                    } else if (!isValidEmail(email)) {
+                        showError(document.getElementById('loginEmail'), 'Veuillez entrer un email valide');
+                        isValid = false;
+                    }
+                    
+                    // Valider le mot de passe
+                    if (!password) {
+                        showError(document.getElementById('loginPassword'), 'Le mot de passe est requis');
+                        isValid = false;
+                    }
+                    
+                    if (isValid) {
+>>>>>>> user
                         // Passer à l'étape du captcha
                         document.getElementById('login-step1').style.display = 'none';
                         document.getElementById('login-step2').style.display = 'block';
@@ -1054,8 +1110,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (document.getElementById('verify-captcha')) {
                 document.getElementById('verify-captcha').addEventListener('click', function() {
                     if (verifyCaptcha()) {
+<<<<<<< HEAD
                 document.getElementById('loginForm').submit();
             }
+=======
+                        document.getElementById('loginForm').submit();
+                    }
+>>>>>>> user
                 });
             }
             
@@ -1064,6 +1125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     document.getElementById('login-step2').style.display = 'none';
                     document.getElementById('login-step1').style.display = 'block';
                 });
+<<<<<<< HEAD
         }
         
         // Fonction pour afficher les messages d'erreur
@@ -1083,6 +1145,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             errorMessages.forEach(error => error.remove());
             invalidInputs.forEach(input => input.classList.remove('is-invalid'));
         }
+=======
+            }
+            
+            // Fonction pour afficher les messages d'erreur
+            function showError(input, message) {
+                const formGroup = input.closest('.form-group');
+                const error = document.createElement('div');
+                error.className = 'invalid-feedback d-block';
+                error.innerText = message;
+                formGroup.appendChild(error);
+                input.classList.add('is-invalid');
+            }
+            
+            // Fonction pour effacer les messages d'erreur
+            function clearErrors() {
+                const errorMessages = document.querySelectorAll('.invalid-feedback');
+                const invalidInputs = document.querySelectorAll('.is-invalid');
+                errorMessages.forEach(error => error.remove());
+                invalidInputs.forEach(input => input.classList.remove('is-invalid'));
+            }
+>>>>>>> user
         });
         
         // Fonction pour vérifier le format de l'email
@@ -1090,7 +1173,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             return emailRegex.test(email);
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> user
         // Gestion des modals
         document.addEventListener('DOMContentLoaded', function() {
             // Afficher le modal d'inscription depuis le modal de connexion

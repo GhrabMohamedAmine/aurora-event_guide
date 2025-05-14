@@ -88,6 +88,7 @@ class UserController {
         return null;
     }
 
+<<<<<<< HEAD
     public function getAllUsers($sortBy = 'id_user', $order = 'ASC') {
         // Validate sortBy and order
         $allowedSort = ['id_user', 'nom'];
@@ -95,6 +96,10 @@ class UserController {
         $sortBy = in_array($sortBy, $allowedSort) ? $sortBy : 'id_user';
         $order = in_array(strtoupper($order), $allowedOrder) ? strtoupper($order) : 'ASC';
         $stmt = $this->db->query("SELECT * FROM users ORDER BY $sortBy $order");
+=======
+    public function getAllUsers() {
+        $stmt = $this->db->query("SELECT * FROM users");
+>>>>>>> user
         $users = [];
         while ($userData = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $user = new User();
