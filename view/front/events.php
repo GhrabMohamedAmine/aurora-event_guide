@@ -215,7 +215,7 @@ if ($isLoggedIn && $userType === 'organisateur') {
 
     <style>
         .navbar {
-            background-color: #ffffff;
+            background-color:#301934;
             padding: 10px 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
@@ -233,7 +233,7 @@ if ($isLoggedIn && $userType === 'organisateur') {
         }
 
         .events-section {
-            background-color: #602299;
+            background-color:#301934;
             padding: 30px;
             border-radius: 15px;
             margin-top: 20px;
@@ -293,7 +293,7 @@ if ($isLoggedIn && $userType === 'organisateur') {
         }
 
         .event-card-horizontal {
-            flex: 0 0 350px;
+            flex: 0 0 400px;
             scroll-snap-align: start;
             background-color: #fff;
             border-radius: 15px;
@@ -308,7 +308,7 @@ if ($isLoggedIn && $userType === 'organisateur') {
 
         .event-card-horizontal img {
             width: 100%;
-            height: 250px;
+            height: 200px;
             object-fit: cover;
         }
 
@@ -568,91 +568,26 @@ if ($isLoggedIn && $userType === 'organisateur') {
         }
 
         /* Events Sections */
-        .my-events-section {
-            background-color: #602299;
+        .events-section {
+            background-color:#301934;
             padding: 30px;
             border-radius: 15px;
             margin-top: 20px;
         }
 
-        .table-container {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 14px;
-        }
-
-        .table th {
-            background-color: #381d51;
-            color: white;
-            font-size: 13px;
-        }
-
-        .table th, .table td {
-            padding: 10px 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .table tr:hover {
-            background-color: #f9f9f9;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn {
-            padding: 6px 12px;
-            border-radius: 4px;
-            text-decoration: none;
-            color: white;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            border: none;
-            transition: background-color 0.3s;
-        }
-
-        .btn-edit {
-            background-color: #ffc107;
-        }
-
-        .btn-edit:hover {
-            background-color: #e0a800;
-        }
-
-        .btn-delete {
-            background-color: #dc3545;
-        }
-
-        .btn-delete:hover {
-            background-color: #c82333;
-        }
-
-        @media (max-width: 992px) {
+        @media (max-width: 1000px) {
             .event-card-horizontal {
                 flex: 0 0 300px;
             }
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1000px) {
             .event-card-horizontal {
                 flex: 0 0 280px;
             }
         }
 
-        @media (max-width: 576px) {
+        @media (max-width: 600px) {
             .event-card-horizontal {
                 flex: 0 0 85%;
             }
@@ -690,18 +625,21 @@ if ($isLoggedIn && $userType === 'organisateur') {
 
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav align-items-lg-center ms-auto me-lg-5">
+                       
                         <li class="nav-item">
-                            <a class="nav-link" href="afficher.php#section_1">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="afficher.php#section_2">About</a>
+                            <a class="nav-link" href="produits.php">produits</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link active" href="events.php">Events</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="afficher.php#section_4">Reviews</a>
+                            <a class="nav-link" href="front.php">sponsoring</a>
                         </li>
+                       
+                        <li class="nav-item">
+                            <a class="nav-link" href="pub.php">publicité</a>
+                        </li>
+
                         <?php if ($isLoggedIn && $userType === 'admin'): ?>
                             <li class="nav-item">
                                 <a class="nav-link" href="../back/user_back.php?user_id=<?php echo $_SESSION['user_id']; ?>">Admin Dashboard</a>
@@ -717,7 +655,7 @@ if ($isLoggedIn && $userType === 'organisateur') {
                                 <li><a class="dropdown-item" href="../front/user_front.php?user_id=<?php echo $_SESSION['user_id']; ?>&type=<?php echo $userType; ?>">Profil</a></li>
                                 <li><a class="dropdown-item" href="my_reservations.php">Mes Réservations</a></li>
                                 <?php if ($userType === 'organisateur'): ?>
-                                    <li><a class="dropdown-item" href="events.php#my-events">Mes Événements</a></li>
+                                    <li><a class="dropdown-item" href="myevents.php">Mes Événements</a></li>
                                 <?php endif; ?>
                                 <li><a class="dropdown-item" href="events.php?action=logout">Déconnexion</a></li>
                             </ul>
@@ -743,10 +681,10 @@ if ($isLoggedIn && $userType === 'organisateur') {
             <div class="container">
                 <div class="events-section">
                     <div class="section-title">
-                        <h2>Upcoming Events</h2>
+                        <h2>Événements à venir</h2>
                     </div>
 
-                    <a href="afficher.php#section_1" class="back-link"><i class="fas fa-arrow-left"></i> Back to Home</a>
+                   
 
                     <div class="events-grid-container">
                         <?php if (isset($_SESSION['success'])): ?>
@@ -820,54 +758,6 @@ if ($isLoggedIn && $userType === 'organisateur') {
                         </div>
                     <?php endif; ?>
                 </div>
-
-                <!-- My Events Section (for Organizers) -->
-                <?php if ($isLoggedIn && $userType === 'organisateur'): ?>
-                    <div class="my-events-section" id="my-events">
-                        <div class="section-title">
-                            <h2>Mes Événements</h2>
-                        </div>
-                        <div class="table-container">
-                            <?php if (empty($organizerEvents)): ?>
-                                <p style="color: #fff;">Aucun événement à afficher.</p>
-                            <?php else: ?>
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Titre</th>
-                                            <th>Artiste</th>
-                                            <th>Date</th>
-                                            <th>Lieu</th>
-                                            <th>Prix (TND)</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($organizerEvents as $event): ?>
-                                            <tr>
-                                                <td><?= htmlspecialchars($event['id_event']) ?></td>
-                                                <td><?= htmlspecialchars($event['titre']) ?></td>
-                                                <td><?= htmlspecialchars($event['artiste'] ?? 'N/A') ?></td>
-                                                <td><?= htmlspecialchars($event['date']) ?></td>
-                                                <td><?= htmlspecialchars($event['lieu']) ?></td>
-                                                <td><?= htmlspecialchars(number_format($event['prix'], 2)) ?></td>
-                                                <td class="action-buttons">
-                                                    <a href="edit_event.php?id_event=<?= $event['id_event'] ?>" class="btn btn-edit">
-                                                        <i class="fas fa-edit"></i> Modifier
-                                                    </a>
-                                                    <a href="events.php?action=delete_event&id_event=<?= $event['id_event'] ?>" class="btn btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')">
-                                                        <i class="fas fa-trash"></i> Supprimer
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
             </div>
         </section>
     </main>
@@ -919,17 +809,18 @@ if ($isLoggedIn && $userType === 'organisateur') {
                 <div class="col-lg-6 col-12 mb-4 pb-2">
                     <h5 class="site-footer-title mb-3">Links</h5>
                     <ul class="site-footer-links">
+                       
                         <li class="site-footer-link-item">
-                            <a href="afficher.php#section_1" class="site-footer-link">Home</a>
-                        </li>
-                        <li class="site-footer-link-item">
-                            <a class="nav-link" href="afficher.php#section_2">About</a>
+                            <a class="nav-link" href="produits.php">produits</a>
                         </li>
                         <li class="site-footer-link-item">
                             <a class="nav-link active" href="events.php">Events</a>
                         </li>
                         <li class="site-footer-link-item">
-                            <a class="nav-link" href="afficher.php#section_4">Reviews</a>
+                            <a class="nav-link" href="sponsoring.php">spondoring</a>
+                        </li>
+                        <li class="site-footer-link-item">
+                            <a class="nav-link" href="pub.php">publicité</a>
                         </li>
                     </ul>
                 </div>

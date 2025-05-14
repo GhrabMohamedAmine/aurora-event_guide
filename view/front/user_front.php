@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../../config.php';
-require_once __DIR__ . '/../../controller/user_controller.php';
+require_once '../../config.php';
+require_once '../../controller/user_controller.php';
 
 // Démarrage de la session
 session_start();
@@ -112,7 +112,227 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-    <link rel="stylesheet" href="../assets/css/logout.css" />
+    <style>
+        /* General Body Styling */
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #602299;
+            color: #333;
+        }
+
+        /* Settings Header */
+        .settings-header {
+            background-color: #301934; /* Changed from assumed #602299 to #301934 */
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .settings-header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .settings-header p.lead {
+            font-size: 1.25rem;
+            font-weight: 300;
+        }
+
+        /* Settings Card */
+        .settings-card {
+            background-color: white;
+            border: 1px solid #301934; /* Changed from assumed #602299 to #301934 */
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .settings-card h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Navigation Tabs */
+        .nav-pills .nav-link {
+            color: #301934; /* Changed from assumed #602299 to #301934 */
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: #301934; /* Changed from assumed #602299 to #301934 */
+            color: white;
+        }
+
+        .nav-pills .nav-link:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Form Elements */
+        .form-label {
+            font-weight: 500;
+            color:#602299 ; /* Changed from assumed #602299 to #301934 */
+        }
+
+        .form-control, .form-select {
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            padding: 0.75rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #301934; /* Changed from assumed #602299 to #301934 */
+            box-shadow: 0 0 5px rgba(48, 25, 52, 0.3);
+        }
+
+        /* Buttons */
+        .btn-save, .btn-primary {
+            background-color: #301934; /* Changed from assumed #381d51 to #301934 */
+            border-color: #301934;
+            color: white;
+            font-weight: 500;
+            padding: 0.5rem 1.5rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-save:hover, .btn-primary:hover {
+            background-color: #3e2342; /* Slightly lighter shade for hover */
+            border-color: #3e2342;
+        }
+
+        .btn-outline-primary {
+            color: #301934; /* Changed from assumed #381d51 to #301934 */
+            border-color: #301934;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #301934;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .btn-outline-danger {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #301934; /* Changed from assumed #602299 to #301934 */
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Security Alert */
+        .security-alert {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffca2c;
+            border-radius: 5px;
+        }
+
+        /* Danger Zone */
+        .danger-zone {
+            border: 1px solid #dc3545;
+        }
+
+        /* Theme Options */
+        .theme-option {
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .theme-option.active {
+            border: 2px solid #301934; /* Changed from assumed #602299 to #301934 */
+        }
+
+        .theme-preview {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 0.5rem;
+            border-radius: 5px;
+        }
+
+        .light-theme {
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+        }
+
+        .dark-theme {
+            background-color: #343a40;
+            border: 1px solid #ced4da;
+        }
+
+        .aurora-theme {
+            background: linear-gradient(135deg, #301934, #4a2c50); /* Changed from assumed #602299 gradient to #301934 */
+            border: none;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 767px) {
+            .settings-header h1 {
+                font-size: 2rem;
+            }
+
+            .settings-header p.lead {
+                font-size: 1rem;
+            }
+
+            .nav-pills .nav-link {
+                padding: 0.5rem 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Affichage des messages de succès/erreur -->
@@ -835,7 +1055,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/main.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Account update form validation

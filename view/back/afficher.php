@@ -458,12 +458,12 @@ foreach ($events as $event) {
             <li>
                 <i class="fas fa-tachometer-alt"></i>
                 <a href="index.php" style="color: inherit; text-decoration: none;">
-                    <span>Dashboard</span>
+                    <span>dashbord</span>
                 </a>
             </li>
             <li>
                 <i class="fas fa-user"></i>
-                <a href="User.php" style="color: inherit; text-decoration: none;">
+                <a href="user_back.php" style="color: inherit; text-decoration: none;">
                     <span>Users</span>
                 </a>
             </li>
@@ -587,7 +587,7 @@ foreach ($events as $event) {
                     <a href="ajouter.php" class="btn btn-add">
                         <i class="fas fa-plus"></i> Ajouter
                     </a>
-                    <a href="index.php" class="btn btn-calendar">
+                    <a href="calander.php" class="btn btn-calendar">
                         <i class="fas fa-calendar"></i> Calendrier
                     </a>
                 </div>
@@ -607,6 +607,7 @@ foreach ($events as $event) {
                             <th>Lieu</th>
                             <th>Prix</th>
                             <th>Description</th>
+                            <th>ID Organisateur</th>
                             <th>Image</th>
                             <th>Actions</th>
                         </tr>
@@ -624,6 +625,7 @@ foreach ($events as $event) {
                                 <td class="description-cell" title="<?= htmlspecialchars($event->getDescription() ?? 'N/A') ?>">
                                     <?= htmlspecialchars($event->getDescription() ?? 'N/A') ?>
                                 </td>
+                                <td><?= htmlspecialchars($event->getIdUser() ?? 'N/A') ?></td>
                                 <td>
                                     <?php if ($event->getImage()): ?>
                                         <?php $imagePath = htmlspecialchars($event->getImage()); ?>
