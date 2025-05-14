@@ -7,7 +7,7 @@ session_start();
 
 // Handle signup
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
-    $db = getDB(); // Use the getDB() function from config.php
+    $db = config::getConnexion();
     $userController = new UserController($db);
 
     // Validate required fields
@@ -49,19 +49,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
 
 // Handle login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $db = getDB(); // Use the getDB() function from config.php
+  $db = getDB();
     $userController = new UserController($db);
     
     // Handle login
     if (isset($_POST['action']) && $_POST['action'] === 'login') {
         $email = $_POST['email'];
         $password = $_POST['password'];
+        
+        // Vérifier si on a les informations requises
+        if (empty($email) || empty($password)) {
+            header('Location: accueilleinterface.php?error=empty');
+            exit();
+        }
+        
+        // Lancer la connexion
         $result = $userController->login($email, $password);
         
         if ($result === false) {
             header('Location: accueilleinterface.php?error=invalid');
             exit();
         }
+        
         // Get the user ID and type for the redirect
         $stmt = $db->prepare("SELECT id_user, type FROM users WHERE email = :email");
         $stmt->bindParam(':email', $email);
@@ -517,9 +526,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           echo '<div class="alert alert-danger">Email ou mot de passe incorrect.</div>';
                       } elseif ($error === 'empty') {
                           echo '<div class="alert alert-danger">Veuillez remplir tous les champs.</div>';
+                      } elseif ($error === 'captcha') {
+                          echo '<div class="alert alert-danger">Veuillez compléter le captcha correctement.</div>';
                       }
                   }
                   ?>
+                  <!-- Étape 1: Login Form -->
+                  <div id="login-step1" style="display: block;">
                   <form method="POST" action="accueilleinterface.php" id="loginForm" onsubmit="return validateLoginForm(event)">
                     <div class="form-group">
                       <label class="form-label aurora-label">
@@ -527,17 +540,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       </label>
                       <input type="email" class="form-control aurora-input" name="email" id="loginEmail" placeholder="votre@email.com">
                     </div>
-                    <div class="form-group">
+                      <div class="form-group mb-4">
                         <label class="form-label aurora-label">
                             <i class="bi bi-lock-fill me-2"></i>Mot de passe
                         </label>
                         <input type="password" class="form-control aurora-input" name="password" id="loginPassword" placeholder="••••••••">
                     </div>
+                      <div class="d-grid">
+                        <button type="button" id="proceedToCaptcha" class="btn aurora-btn py-3">
+                          <i class="bi bi-shield-check me-2"></i>Continuer
+                        </button>
+                      </div>
                     <input type="hidden" name="action" value="login">
-                    <button type="submit" class="btn aurora-btn w-100 py-3">
+                    </form>
+                  </div>
+                  
+                  <!-- Étape 2: Captcha Verification -->
+                  <div id="login-step2" style="display: none;">
+                    <div class="text-center mb-3">
+                      <h6 class="aurora-subtitle">Vérification de sécurité</h6>
+                      <p class="text-white-50 small">Veuillez compléter la vérification ci-dessous</p>
+                    </div>
+                    
+                    <div class="captcha-container">
+                      <!-- Custom Captcha -->
+                      <div class="custom-captcha mb-3">
+                        <div id="captcha-challenge" class="captcha-challenge mb-2">
+                          <!-- Le défi captcha sera généré ici -->
+                        </div>
+                        <div class="input-group">
+                          <input type="text" id="captcha-input" class="form-control aurora-input" placeholder="Entrez le code captcha">
+                          <button type="button" id="refresh-captcha" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-repeat"></i>
+                          </button>
+                        </div>
+                        <div id="captcha-error" class="error-message mt-2"></div>
+                      </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                      <button type="button" id="verify-captcha" class="btn aurora-btn py-3">
                       <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
                     </button>
-                  </form>
+                      <button type="button" id="backToLogin" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Retour
+                      </button>
+                    </div>
+                  </div>
+                  
                   <div class="text-center mt-4">
                     <a href="#" class="aurora-link" id="showResetPassword">Mot de passe oublié ?</a>
                   </div>
@@ -562,7 +612,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
               <div class="modal-body aurora-modal-body">
                   <!-- Étape 1: Demande de réinitialisation -->
-                  <div id="reset-step1">
+                  <div id="reset-step1" style="display: block;">
                       <div class="steps mb-4">
                           <div class="step active">1</div>
                           <div class="step">2</div>
@@ -574,7 +624,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                               <i class="bi bi-envelope-fill me-2"></i>Adresse email
                           </label>
                           <input type="email" class="form-control aurora-input" id="reset-email" placeholder="votre@email.com">
-                          <div id="reset-email-error" class="error-message hidden"></div>
+                          <div id="reset-email-error" class="error-message"></div>
                       </div>
   
                       <button id="reset-submit-email" class="btn aurora-btn w-100 py-3 mt-3">
@@ -583,7 +633,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </div>
   
                   <!-- Étape 2: Vérification du code -->
-                  <div id="reset-step2" class="hidden">
+                  <div id="reset-step2" style="display: none;">
                       <div class="steps mb-4">
                           <div class="step completed">1</div>
                           <div class="step active">2</div>
@@ -597,7 +647,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                               <i class="bi bi-shield-lock-fill me-2"></i>Code de vérification
                           </label>
                           <input type="text" class="form-control aurora-input" id="reset-code" placeholder="Entrez le code à 6 chiffres" maxlength="6">
-                          <div id="reset-code-error" class="error-message hidden"></div>
+                          <div id="reset-code-error" class="error-message"></div>
                       </div>
   
                       <button id="reset-submit-code" class="btn aurora-btn w-100 py-3 mt-3">
@@ -609,7 +659,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </div>
   
                   <!-- Étape 3: Nouveau mot de passe -->
-                  <div id="reset-step3" class="hidden">
+                  <div id="reset-step3" style="display: none;">
                       <div class="steps mb-4">
                           <div class="step completed">1</div>
                           <div class="step completed">2</div>
@@ -621,7 +671,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                               <i class="bi bi-lock-fill me-2"></i>Nouveau mot de passe
                           </label>
                           <input type="password" class="form-control aurora-input" id="new-password" placeholder="Au moins 8 caractères">
-                          <div id="new-password-error" class="error-message hidden"></div>
+                          <div id="new-password-error" class="error-message"></div>
                       </div>
   
                       <div class="form-group">
@@ -637,7 +687,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </div>
   
                   <!-- Confirmation finale -->
-                  <div id="reset-confirmation" class="hidden text-center">
+                  <div id="reset-confirmation" style="display: none;" class="text-center">
                       <div class="mb-4">
                           <i class="bi bi-check-circle-fill" style="font-size: 3rem; color: #4BB543;"></i>
                       </div>
@@ -773,26 +823,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Modal du chatbot -->
     <div class="modal fade" id="chatbotModal" tabindex="-1" aria-labelledby="chatbotModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content">
-              <div class="modal-header">
-                  <h5 class="modal-title" id="chatbotModalLabel">Assistant Aurora Event</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="modal-content aurora-modal">
+              <div class="modal-header aurora-modal-header border-0">
+                  <h5 class="modal-title aurora-title" id="chatbotModalLabel">
+                      <i class="bi bi-robot me-2"></i>Assistant Aurora Event
+                  </h5>
+                  <button type="button" class="btn-close aurora-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
-              <div class="modal-body">
+              <div class="modal-body aurora-modal-body">
                   <!-- Interface du chatbot -->
-                  <div id="chatbot-container" style="height: 400px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                  <div id="chatbot-container" style="height: 400px; overflow-y: auto; margin-bottom: 15px; border-radius: 5px; background-color: #2A2A2A; padding: 15px;">
                       <div class="chat-message bot-message">
-                          <p>Bonjour ! Je suis l'assistant d'Aurora Event. Comment puis-je vous aider aujourd'hui ?</p>
+                          <div class="message-bubble">Bonjour ! Je suis l'assistant d'Aurora Event. Comment puis-je vous aider aujourd'hui ?</div>
                       </div>
                       <!-- Les messages de chat apparaîtront ici -->
                   </div>
                   <div class="input-group">
-                      <input type="text" id="chatbotInput" class="form-control" placeholder="Tapez votre message ici..." aria-label="Tapez votre message">
-                      <button class="btn btn-primary" id="sendMessageBtn" type="button">Envoyer</button>
+                      <input type="text" id="chatbotInput" class="form-control aurora-input chatbot-input" placeholder="Tapez votre message ici..." aria-label="Tapez votre message">
+                      <button class="btn custom-btn send-btn" id="sendMessageBtn" type="button">
+                          <i class="bi bi-send-fill"></i>
+                      </button>
                   </div>
-              </div>
-              <div class="modal-footer">
-                  <small class="text-muted">Notre assistant est disponible 24h/24 pour répondre à vos questions</small>
               </div>
           </div>
       </div>
@@ -812,44 +863,207 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         // Fonction de validation du formulaire de connexion
         function validateLoginForm(event) {
+            // Empêcher la soumission normale du formulaire
             event.preventDefault();
             
-            // Récupérer les champs
-            const email = document.getElementById('loginEmail');
-            const password = document.getElementById('loginPassword');
+            // Cette fonction est maintenant appelée par le bouton de vérification du captcha
+            if (verifyCaptcha()) {
+                document.getElementById('loginForm').submit();
+            }
+            
+            return false;
+        }
+        
+        // Système de Captcha
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables globales du captcha
+            let captchaText = '';
+            let captchaExpiry = 0;
+            
+            // Styles pour le captcha
+            const captchaStyles = document.createElement('style');
+            captchaStyles.textContent = `
+                .captcha-challenge {
+                    position: relative;
+                    height: 80px;
+                    width: 100%;
+                    background: linear-gradient(145deg, #3a0b58, #6A1B9A);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                }
+                
+                .captcha-text {
+                    font-family: 'Courier New', monospace;
+                    font-size: 28px;
+                    font-weight: bold;
+                    color: #fff;
+                    letter-spacing: 6px;
+                    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+                    user-select: none;
+                }
+                
+                .captcha-noise {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    opacity: 0.3;
+                    pointer-events: none;
+                }
+                
+                .captcha-line {
+                    position: absolute;
+                    height: 2px;
+                    background-color: rgba(255, 255, 255, 0.5);
+                    width: 100%;
+                    transform: rotate(var(--angle));
+                    opacity: 0.7;
+                }
+                
+                .captcha-dot {
+                    position: absolute;
+                    width: 4px;
+                    height: 4px;
+                    border-radius: 50%;
+                    background-color: rgba(255, 255, 255, 0.4);
+                    opacity: 0.7;
+                }
+            `;
+            document.head.appendChild(captchaStyles);
+            
+            // Générer un captcha aléatoire
+            function generateCaptcha() {
+                // Caractères pour le captcha (sans caractères ambigus comme 0, O, 1, I, etc.)
+                const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+                captchaText = '';
+                
+                // Générer 6 caractères aléatoires
+                for (let i = 0; i < 6; i++) {
+                    captchaText += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                
+                // Définir le temps d'expiration (2 minutes)
+                captchaExpiry = Date.now() + 2 * 60 * 1000;
+                
+                // Créer l'élément canvas pour le captcha
+                const captchaContainer = document.getElementById('captcha-challenge');
+                captchaContainer.innerHTML = '';
+                
+                // Ajouter le texte du captcha
+                const textElement = document.createElement('div');
+                textElement.className = 'captcha-text';
+                textElement.textContent = captchaText;
+                captchaContainer.appendChild(textElement);
+                
+                // Ajouter des lignes aléatoires pour la complexité
+                for (let i = 0; i < 5; i++) {
+                    const line = document.createElement('div');
+                    line.className = 'captcha-line';
+                    line.style.setProperty('--angle', `${Math.random() * 180}deg`);
+                    line.style.top = `${Math.random() * 100}%`;
+                    captchaContainer.appendChild(line);
+                }
+                
+                // Ajouter des points aléatoires pour la complexité
+                for (let i = 0; i < 50; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'captcha-dot';
+                    dot.style.left = `${Math.random() * 100}%`;
+                    dot.style.top = `${Math.random() * 100}%`;
+                    captchaContainer.appendChild(dot);
+                }
+                
+                // Réinitialiser le champ de saisie et les erreurs
+                document.getElementById('captcha-input').value = '';
+                document.getElementById('captcha-error').textContent = '';
+                document.getElementById('captcha-error').style.display = 'none';
+            }
+            
+            // Vérifier le captcha
+            window.verifyCaptcha = function() {
+                const input = document.getElementById('captcha-input').value.trim();
+                const errorElement = document.getElementById('captcha-error');
+                
+                // Vérifier si le captcha a expiré
+                if (Date.now() > captchaExpiry) {
+                    errorElement.textContent = "Le captcha a expiré. Veuillez réessayer.";
+                    errorElement.style.display = 'block';
+                    generateCaptcha();
+                    return false;
+                }
+                
+                // Vérifier si l'entrée correspond au captcha
+                if (input !== captchaText) {
+                    errorElement.textContent = "Code captcha incorrect. Veuillez réessayer.";
+                    errorElement.style.display = 'block';
+                    generateCaptcha();
+                    return false;
+                }
+                
+                return true;
+            }
+            
+            // Écouteurs d'événements
+            if (document.getElementById('proceedToCaptcha')) {
+                document.getElementById('proceedToCaptcha').addEventListener('click', function() {
+                    // Valider les champs de connexion
+                    const email = document.getElementById('loginEmail').value.trim();
+                    const password = document.getElementById('loginPassword').value.trim();
             let isValid = true;
             
             // Réinitialiser les messages d'erreur
             clearErrors();
             
             // Valider l'email
-            if (!email.value.trim()) {
-                showError(email, 'L\'email est requis');
+                    if (!email) {
+                        showError(document.getElementById('loginEmail'), 'L\'email est requis');
                 isValid = false;
-            } else if (!isValidEmail(email.value.trim())) {
-                showError(email, 'Veuillez entrer un email valide');
+                    } else if (!isValidEmail(email)) {
+                        showError(document.getElementById('loginEmail'), 'Veuillez entrer un email valide');
                 isValid = false;
             }
             
             // Valider le mot de passe
-            if (!password.value.trim()) {
-                showError(password, 'Le mot de passe est requis');
-                isValid = false;
-            } else if (password.value.length < 6) {
-                showError(password, 'Le mot de passe doit contenir au moins 6 caractères');
+                    if (!password) {
+                        showError(document.getElementById('loginPassword'), 'Le mot de passe est requis');
                 isValid = false;
             }
             
-            // Si tout est valide, soumettre le formulaire
             if (isValid) {
+                        // Passer à l'étape du captcha
+                        document.getElementById('login-step1').style.display = 'none';
+                        document.getElementById('login-step2').style.display = 'block';
+                        
+                        // Générer un nouveau captcha
+                        generateCaptcha();
+                    }
+                });
+            }
+            
+            if (document.getElementById('refresh-captcha')) {
+                document.getElementById('refresh-captcha').addEventListener('click', function() {
+                    generateCaptcha();
+                });
+            }
+            
+            if (document.getElementById('verify-captcha')) {
+                document.getElementById('verify-captcha').addEventListener('click', function() {
+                    if (verifyCaptcha()) {
                 document.getElementById('loginForm').submit();
             }
-        }
-        
-        // Fonction pour vérifier le format de l'email
-        function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
+                });
+            }
+            
+            if (document.getElementById('backToLogin')) {
+                document.getElementById('backToLogin').addEventListener('click', function() {
+                    document.getElementById('login-step2').style.display = 'none';
+                    document.getElementById('login-step1').style.display = 'block';
+                });
         }
         
         // Fonction pour afficher les messages d'erreur
@@ -869,9 +1083,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             errorMessages.forEach(error => error.remove());
             invalidInputs.forEach(input => input.classList.remove('is-invalid'));
         }
+        });
         
-        // Ajouter l'événement de validation au formulaire de connexion
-        document.getElementById('loginForm').addEventListener('submit', validateLoginForm);
+        // Fonction pour vérifier le format de l'email
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
 
         // Gestion des modals
         document.addEventListener('DOMContentLoaded', function() {
@@ -905,42 +1123,464 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 resetModal.show();
             });
             
-            // Chatbot simple
-            document.getElementById('sendMessageBtn').addEventListener('click', function() {
+            // Gestion du chatbot avec Gemini API
+            const API_KEY = 'AIzaSyC4tFotf2XQ9LEud7A91vpdPdBS58pnS5k';
+            const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+            
+            // Chatbot amélioré avec Gemini API
+            document.getElementById('sendMessageBtn').addEventListener('click', sendChatbotMessage);
+            
+            // Permettre d'envoyer un message avec la touche Entrée
+            document.getElementById('chatbotInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendChatbotMessage();
+                }
+            });
+            
+            function sendChatbotMessage() {
                 const input = document.getElementById('chatbotInput');
                 const message = input.value.trim();
+                const chatContainer = document.getElementById('chatbot-container');
                 
                 if (message) {
                     // Ajouter le message de l'utilisateur
                     const userMessage = document.createElement('div');
                     userMessage.className = 'chat-message user-message';
-                    userMessage.innerHTML = `<p>${message}</p>`;
-                    document.getElementById('chatbot-container').appendChild(userMessage);
-                    
-                    // Réponse automatique
-                    setTimeout(function() {
-                        const botMessage = document.createElement('div');
-                        botMessage.className = 'chat-message bot-message';
-                        botMessage.innerHTML = '<p>Merci pour votre message. Notre équipe vous répondra dès que possible.</p>';
-                        document.getElementById('chatbot-container').appendChild(botMessage);
-                        
-                        // Faire défiler vers le bas
-                        document.getElementById('chatbot-container').scrollTop = document.getElementById('chatbot-container').scrollHeight;
-                    }, 1000);
+                    userMessage.innerHTML = `<div class="message-bubble">${message}</div>`;
+                    chatContainer.appendChild(userMessage);
                     
                     // Effacer le champ de saisie
                     input.value = '';
                     
                     // Faire défiler vers le bas
-                    document.getElementById('chatbot-container').scrollTop = document.getElementById('chatbot-container').scrollHeight;
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    
+                    // Afficher l'indicateur de chargement
+                    const loadingMessage = document.createElement('div');
+                    loadingMessage.className = 'chat-message bot-message loading';
+                    loadingMessage.innerHTML = '<div class="message-bubble"><span class="typing-indicator"><span>.</span><span>.</span><span>.</span></span></div>';
+                    chatContainer.appendChild(loadingMessage);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    
+                    // Appeler l'API Gemini
+                    fetchGeminiResponse(message)
+                        .then(response => {
+                            // Supprimer l'indicateur de chargement
+                            chatContainer.removeChild(loadingMessage);
+                            
+                            // Ajouter la réponse du bot
+                        const botMessage = document.createElement('div');
+                        botMessage.className = 'chat-message bot-message';
+                            botMessage.innerHTML = `<div class="message-bubble">${response || "Je suis désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer."}</div>`;
+                            chatContainer.appendChild(botMessage);
+                        
+                        // Faire défiler vers le bas
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        })
+                        .catch(error => {
+                            console.error('Erreur API Gemini:', error);
+                            
+                            // Supprimer l'indicateur de chargement
+                            chatContainer.removeChild(loadingMessage);
+                            
+                            // Afficher un message d'erreur
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'chat-message bot-message';
+                            errorMessage.innerHTML = `<div class="message-bubble">Désolé, je rencontre des difficultés techniques. Veuillez réessayer plus tard.</div>`;
+                            chatContainer.appendChild(errorMessage);
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        });
                 }
+            }
+            
+            async function fetchGeminiResponse(message) {
+                try {
+                    // Créer le prompt pour Gemini
+                    const prompt = `Tu es l'assistant virtuel d'Aurora Event, une plateforme de gestion d'événements. 
+                    Réponds de manière amicale, concise et utile aux questions concernant l'organisation d'événements, 
+                    la participation à des événements, et notre plateforme. Limite tes réponses à 2-3 phrases.
+                    
+                    Question de l'utilisateur: ${message}`;
+                    
+                    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: prompt
+                                }]
+                            }]
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau');
+                    }
+                    
+                    const data = await response.json();
+                    const textResponse = data.candidates[0].content.parts[0].text;
+                    return textResponse;
+                } catch (error) {
+                    console.error('Erreur lors de l\'appel à l\'API Gemini:', error);
+                    return null;
+                }
+            }
+
+            // Gestion des étapes de réinitialisation du mot de passe
+            document.addEventListener('DOMContentLoaded', function() {
+                // Ajoutez des styles CSS améliorés pour les étapes
+                const stepStyles = document.createElement('style');
+                stepStyles.textContent = `
+                    .steps {
+                        display: flex;
+                        justify-content: center;
+                        margin-bottom: 2rem;
+                        position: relative;
+                    }
+                    
+                    .step {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        background-color: #444;
+                        color: #fff;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin: 0 30px;
+                        position: relative;
+                        z-index: 2;
+                        font-weight: bold;
+                        border: 2px solid #444;
+                        transition: all 0.3s ease;
+                    }
+                    
+                    .steps:before {
+                        content: '';
+                        position: absolute;
+                        top: 50%;
+                        left: calc(50% - 80px);
+                        transform: translateY(-50%);
+                        width: 160px;
+                        height: 3px;
+                        background-color: #444;
+                        z-index: 1;
+                    }
+                    
+                    .step.active {
+                        background-color: #6A1B9A;
+                        border-color: #6A1B9A;
+                        box-shadow: 0 0 10px rgba(106, 27, 154, 0.5);
+                        transform: scale(1.1);
+                    }
+                    
+                    .step.completed {
+                        background-color: #4BB543;
+                        border-color: #4BB543;
+                    }
+                    
+                    .error-message {
+                        color: #dc3545;
+                        font-size: 0.875rem;
+                        margin-top: 0.25rem;
+                        display: none;
+                    }
+                `;
+                document.head.appendChild(stepStyles);
             });
             
-            // Permettre d'envoyer un message avec la touche Entrée
-            document.getElementById('chatbotInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    document.getElementById('sendMessageBtn').click();
+            document.getElementById('reset-submit-email').addEventListener('click', function() {
+                console.log("Continue button clicked");
+                const email = document.getElementById('reset-email').value.trim();
+                const emailError = document.getElementById('reset-email-error');
+                
+                // Get the base URL
+                const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/view/'));
+                const resetUrl = baseUrl + '/controller/reset_password.php';
+                console.log("Reset URL:", resetUrl);
+                
+                if (!email) {
+                    emailError.textContent = "Veuillez entrer votre adresse email";
+                    emailError.style.display = 'block';
+                    return;
                 }
+                
+                if (!isValidEmail(email)) {
+                    emailError.textContent = "Veuillez entrer une adresse email valide";
+                    emailError.style.display = 'block';
+                    return;
+                }
+                
+                // Afficher un indicateur de chargement
+                emailError.textContent = "Envoi en cours...";
+                emailError.style.color = "#FFD700";
+                emailError.style.display = 'block';
+                
+                console.log("Sending reset code request for:", email);
+                
+                // Envoyer une requête AJAX pour vérifier l'email et envoyer le code
+                const formData = new FormData();
+                formData.append('action', 'send_reset_code');
+                formData.append('email', email);
+                
+                fetch(resetUrl, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log("Response received:", response);
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau: ' + response.status);
+                    }
+                    
+                    // Vérifiez si le content-type est application/json
+                    const contentType = response.headers.get('content-type');
+                    console.log("Content-Type:", contentType);
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('Réponse invalide du serveur: Content-Type incorrect');
+                    }
+                    
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Data received:", data);
+                    if (data.success) {
+                        // Marquer l'étape 1 comme terminée
+                        const stepsContainer = document.querySelector('#reset-step1 .steps');
+                        stepsContainer.querySelector('.step:nth-child(1)').classList.remove('active');
+                        stepsContainer.querySelector('.step:nth-child(1)').classList.add('completed');
+                        
+                        // Passer à l'étape 2
+                        document.getElementById('reset-step1').style.display = 'none';
+                        document.getElementById('reset-step2').style.display = 'block';
+                        document.getElementById('reset-user-email').textContent = email;
+                    } else {
+                        emailError.textContent = data.message || "Une erreur s'est produite. Veuillez réessayer.";
+                        emailError.style.color = "#dc3545";
+                        emailError.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    emailError.textContent = "Une erreur s'est produite lors de la communication avec le serveur: " + error.message;
+                    emailError.style.color = "#dc3545";
+                    emailError.style.display = 'block';
+                });
+            });
+            
+            document.getElementById('reset-submit-code').addEventListener('click', function() {
+                console.log("Verify code button clicked");
+                const code = document.getElementById('reset-code').value.trim();
+                const codeError = document.getElementById('reset-code-error');
+                const email = document.getElementById('reset-user-email').textContent;
+                
+                // Get the base URL
+                const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/view/'));
+                const resetUrl = baseUrl + '/controller/reset_password.php';
+                
+                if (!code) {
+                    codeError.textContent = "Veuillez entrer le code de vérification";
+                    codeError.style.display = 'block';
+                    return;
+                }
+                
+                // Afficher un indicateur de chargement
+                codeError.textContent = "Vérification en cours...";
+                codeError.style.color = "#FFD700";
+                codeError.style.display = 'block';
+                
+                console.log("Sending verify code request for:", email, "with code:", code);
+                
+                // Envoyer une requête AJAX pour vérifier le code
+                const formData = new FormData();
+                formData.append('action', 'verify_code');
+                formData.append('email', email);
+                formData.append('code', code);
+                
+                fetch(resetUrl, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log("Response received:", response);
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau: ' + response.status);
+                    }
+                    
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('Réponse invalide du serveur: Content-Type incorrect');
+                    }
+                    
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Data received:", data);
+                    if (data.success) {
+                        // Marquer l'étape 2 comme terminée
+                        const stepsContainer = document.querySelector('#reset-step2 .steps');
+                        stepsContainer.querySelector('.step:nth-child(2)').classList.remove('active');
+                        stepsContainer.querySelector('.step:nth-child(2)').classList.add('completed');
+                        
+                        // Passer à l'étape 3
+                        document.getElementById('reset-step2').style.display = 'none';
+                        document.getElementById('reset-step3').style.display = 'block';
+                    } else {
+                        codeError.textContent = data.message || "Code incorrect. Veuillez réessayer.";
+                        codeError.style.color = "#dc3545";
+                        codeError.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    codeError.textContent = "Une erreur s'est produite lors de la communication avec le serveur: " + error.message;
+                    codeError.style.color = "#dc3545";
+                    codeError.style.display = 'block';
+                });
+            });
+            
+            document.getElementById('reset-resend-code').addEventListener('click', function() {
+                const email = document.getElementById('reset-user-email').textContent;
+                const codeError = document.getElementById('reset-code-error');
+                
+                // Get the base URL
+                const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/view/'));
+                const resetUrl = baseUrl + '/controller/reset_password.php';
+                
+                // Afficher un indicateur de chargement
+                codeError.textContent = "Envoi en cours...";
+                codeError.style.color = "#FFD700";
+                codeError.style.display = 'block';
+                
+                // Envoyer une requête AJAX pour renvoyer le code
+                const formData = new FormData();
+                formData.append('action', 'resend_code');
+                formData.append('email', email);
+                
+                fetch(resetUrl, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau: ' + response.status);
+                    }
+                    
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('Réponse invalide du serveur: Content-Type incorrect');
+                    }
+                    
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Afficher un message de succès temporaire
+                        codeError.textContent = "Un nouveau code a été envoyé à votre adresse email.";
+                        codeError.style.color = "#4BB543";
+                        codeError.style.display = 'block';
+                        
+                        setTimeout(() => {
+                            codeError.textContent = "";
+                        }, 3000);
+                    } else {
+                        codeError.textContent = data.message || "Une erreur s'est produite. Veuillez réessayer.";
+                        codeError.style.color = "#dc3545";
+                        codeError.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    codeError.textContent = "Une erreur s'est produite lors de la communication avec le serveur: " + error.message;
+                    codeError.style.color = "#dc3545";
+                    codeError.style.display = 'block';
+                });
+            });
+            
+            document.getElementById('reset-submit-password').addEventListener('click', function() {
+                const newPassword = document.getElementById('new-password').value.trim();
+                const confirmPassword = document.getElementById('confirm-new-password').value.trim();
+                const passwordError = document.getElementById('new-password-error');
+                const email = document.getElementById('reset-user-email').textContent;
+                
+                // Get the base URL
+                const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/view/'));
+                const resetUrl = baseUrl + '/controller/reset_password.php';
+                
+                if (!newPassword) {
+                    passwordError.textContent = "Veuillez entrer un nouveau mot de passe";
+                    passwordError.style.display = 'block';
+                    return;
+                }
+                
+                if (newPassword.length < 8) {
+                    passwordError.textContent = "Le mot de passe doit contenir au moins 8 caractères";
+                    passwordError.style.display = 'block';
+                    return;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    passwordError.textContent = "Les mots de passe ne correspondent pas";
+                    passwordError.style.display = 'block';
+                    return;
+                }
+                
+                // Afficher un indicateur de chargement
+                passwordError.textContent = "Traitement en cours...";
+                passwordError.style.color = "#FFD700";
+                passwordError.style.display = 'block';
+                
+                console.log("Sending password reset request for:", email);
+                
+                // Envoyer une requête AJAX pour réinitialiser le mot de passe
+                const formData = new FormData();
+                formData.append('action', 'reset_password');
+                formData.append('email', email);
+                formData.append('password', newPassword);
+                
+                fetch(resetUrl, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log("Response received:", response);
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau: ' + response.status);
+                    }
+                    
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('Réponse invalide du serveur: Content-Type incorrect');
+                    }
+                    
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Data received:", data);
+                    if (data.success) {
+                        // Marquer l'étape 3 comme terminée
+                        const stepsContainer = document.querySelector('#reset-step3 .steps');
+                        stepsContainer.querySelector('.step:nth-child(3)').classList.remove('active');
+                        stepsContainer.querySelector('.step:nth-child(3)').classList.add('completed');
+                        
+                        // Afficher la confirmation
+                        document.getElementById('reset-step3').style.display = 'none';
+                        document.getElementById('reset-confirmation').style.display = 'block';
+                    } else {
+                        passwordError.textContent = data.message || "Une erreur s'est produite. Veuillez réessayer.";
+                        passwordError.style.color = "#dc3545";
+                        passwordError.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    passwordError.textContent = "Une erreur s'est produite lors de la communication avec le serveur: " + error.message;
+                    passwordError.style.color = "#dc3545";
+                    passwordError.style.display = 'block';
+                });
             });
         });
 
@@ -1005,5 +1645,143 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
         }
     </script>
+
+    <style>
+        /* Styles pour le chatbot */
+        .chat-message {
+            margin-bottom: 15px;
+            display: flex;
+        }
+        
+        .user-message {
+            justify-content: flex-end;
+        }
+        
+        .bot-message {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 80%;
+            padding: 15px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .user-message .message-bubble {
+            background-color: #ffffff;
+            color: #000000;
+            border-bottom-right-radius: 4px;
+            margin-left: auto;
+        }
+        
+        .bot-message .message-bubble {
+            background-color: #6A1B9A;
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+        
+        /* Indicateur de frappe */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+        }
+        
+        .typing-indicator span {
+            height: 7px;
+            width: 7px;
+            margin: 0 1px;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: block;
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: typing 1s infinite;
+        }
+        
+        .typing-indicator span:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+        
+        @keyframes typing {
+            0% {
+                opacity: 0.4;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+            100% {
+                opacity: 0.4;
+                transform: scale(1);
+            }
+        }
+        
+        /* Nouvelles styles pour le chatbot */
+        .aurora-modal {
+            background-color: #2A2A2A;
+            border: 1px solid #FFD700;
+            border-radius: 10px;
+        }
+        
+        .aurora-modal-header {
+            background-color: #6A1B9A;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            padding: 15px 20px;
+        }
+        
+        .aurora-title {
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .aurora-close {
+            background-color: transparent;
+            color: white;
+            border: none;
+            font-size: 1.5rem;
+        }
+        
+        .chatbot-input {
+            background-color: #333333;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 30px;
+            padding: 12px 20px;
+        }
+        
+        .chatbot-input::placeholder {
+            color: #999;
+        }
+        
+        .send-btn {
+            background-color: #6A1B9A;
+            border-color: #6A1B9A;
+            color: white;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px;
+        }
+        
+        .send-btn:hover {
+            background-color: #8E24AA;
+            border-color: #8E24AA;
+        }
+    </style>
   </body>
 </html>

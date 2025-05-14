@@ -11,6 +11,7 @@ class Event {
     private $description;
     private $image;
     private $prix;
+    private $id_user;
     private $db;
 
     public function __construct($data = []) {
@@ -26,6 +27,7 @@ class Event {
             $this->description = $data['description'] ?? '';
             $this->image = $data['image'] ?? null;
             $this->prix = $data['prix'] ?? null;
+            $this->id_user = $data['id_user'] ?? null;
         }
     }
 
@@ -33,25 +35,40 @@ class Event {
         return getDB();
     }
 
-    // Getters et Setters
+    // Getters
     public function getIdEvent() { return $this->id_event; }
-    public function setIdEvent($id_event) { $this->id_event = $id_event; return $this; }
     public function getTitre() { return $this->titre; }
-    public function setTitre($titre) { $this->titre = $titre; return $this; }
     public function getArtiste() { return $this->artiste; }
-    public function setArtiste($artiste) { $this->artiste = $artiste; return $this; }
     public function getDate() { return $this->date; }
-    public function setDate($date) { $this->date = $date; return $this; }
     public function getHeure() { return $this->heure; }
-    public function setHeure($heure) { $this->heure = $heure; return $this; }
     public function getLieu() { return $this->lieu; }
-    public function setLieu($lieu) { $this->lieu = $lieu; return $this; }
     public function getDescription() { return $this->description; }
-    public function setDescription($description) { $this->description = $description; return $this; }
     public function getImage() { return $this->image; }
-    public function setImage($image) { $this->image = $image; return $this; }
     public function getPrix() { return $this->prix; }
+    public function getIdUser() { return $this->id_user; }
+
+    // Setters
+    public function setIdEvent($id_event) { $this->id_event = $id_event; return $this; }
+    public function setTitre($titre) { $this->titre = $titre; return $this; }
+    public function setArtiste($artiste) { $this->artiste = $artiste; return $this; }
+    public function setDate($date) { $this->date = $date; return $this; }
+    public function setHeure($heure) { $this->heure = $heure; return $this; }
+    public function setLieu($lieu) { $this->lieu = $lieu; return $this; }
+    public function setDescription($description) { $this->description = $description; return $this; }
+    public function setImage($image) { $this->image = $image; return $this; }
     public function setPrix($prix) { $this->prix = $prix; return $this; }
+    public function setIdUser($id_user) { $this->id_user = $id_user; return $this; }
+
+    // Méthode pour hydrater l'objet (facultative, mais utile pour les formulaires)
+    public function hydrate(array $data) {
+        foreach ($data as $key => $value) {
+            $method = 'set' . ucfirst($key);
+            if (method_exists($this, $method)) {
+                $this->$method($value);
+            }
+        }
+        return $this;
+    }
 
     public static function getAll() {
         try {
@@ -94,8 +111,8 @@ class Event {
     public function create() {
         try {
             $stmt = $this->db->prepare("INSERT INTO evenement 
-                                      (titre, artiste, date, heure, lieu, description, image, prix) 
-                                      VALUES (:titre, :artiste, :date, :heure, :lieu, :description, :image, :prix)");
+                                      (titre, artiste, date, heure, lieu, description, image, prix, id_user) 
+                                      VALUES (:titre, :artiste, :date, :heure, :lieu, :description, :image, :prix, :id_user)");
             $success = $stmt->execute([
                 ':titre' => $this->titre,
                 ':artiste' => $this->artiste,
@@ -104,7 +121,8 @@ class Event {
                 ':lieu' => $this->lieu,
                 ':description' => $this->description,
                 ':image' => $this->image,
-                ':prix' => $this->prix
+                ':prix' => $this->prix,
+                ':id_user' => $this->id_user
             ]);
             
             if ($success) {
@@ -131,7 +149,8 @@ class Event {
                 lieu = :lieu,
                 description = :description,
                 image = :image,
-                prix = :prix 
+                prix = :prix,
+                id_user = :id_user
                 WHERE id_event = :id_event");
             
             return $stmt->execute([
@@ -143,7 +162,8 @@ class Event {
                 ':lieu' => $this->lieu,
                 ':description' => $this->description,
                 ':image' => $this->image,
-                ':prix' => $this->prix
+                ':prix' => $this->prix,
+                ':id_user' => $this->id_user
             ]);
         } catch (PDOException $e) {
             if (APP_DEBUG) {

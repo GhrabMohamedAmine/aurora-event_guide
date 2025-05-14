@@ -4,6 +4,13 @@ require_once __DIR__.'/../../model/Event.php';
 
 session_start();
 
+// Vérifier si l'utilisateur est connecté et est un organisateur
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'organisateur') {
+    $_SESSION['error'] = "Vous devez être connecté en tant qu'organisateur pour ajouter un événement.";
+    header("Location: events.php");
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titre = $_POST['titre'] ?? '';
     $artiste = $_POST['artiste'] ?? '';
@@ -20,18 +27,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mkdir($uploadDir, 0755, true);
         }
         
-        $filename = uniqid().'_'.basename($_FILES['image']['name']);
-        $targetPath = $uploadDir.$filename;
+        $filename = uniqid() . '_' . basename($_FILES['image']['name']);
+        $targetPath = $uploadDir . $filename;
         
         if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
-            $image = 'Uploads/'.$filename;
+            $image = 'Uploads/' . $filename;
+        } else {
+            $_SESSION['error'] = "Erreur lors de l'upload de l'image.";
         }
     }
 
-    // Validate prix
-    if (!is_numeric($prix) || $prix < 0) {
-        $_SESSION['error'] = "Le prix doit être un nombre positif";
-    } elseif ($titre && $artiste && $date && $heure && $lieu && $prix !== '') {
+    // Validation côté serveur
+    if (empty($titre) || empty($artiste) || empty($date) || empty($heure) || empty($lieu) || empty($prix)) {
+        $_SESSION['error'] = "Veuillez remplir tous les champs obligatoires.";
+    } elseif (!is_numeric($prix) || $prix < 0) {
+        $_SESSION['error'] = "Le prix doit être un nombre positif.";
+    } else {
         $event = new Event();
         $event->setTitre($titre)
               ->setArtiste($artiste)
@@ -40,17 +51,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               ->setLieu($lieu)
               ->setDescription($description)
               ->setImage($image)
-              ->setPrix($prix);
+              ->setPrix($prix)
+              ->setIdUser($_SESSION['user_id']); // Ajouter id_user de l'organisateur connecté
 
         if ($event->create()) {
             $_SESSION['success'] = "Événement ajouté avec succès!";
             header("Location: ajouter.php");
             exit;
         } else {
-            $_SESSION['error'] = "Erreur lors de l'ajout de l'événement";
+            $_SESSION['error'] = "Erreur lors de l'ajout de l'événement.";
         }
-    } else {
-        $_SESSION['error'] = "Veuillez remplir tous les champs obligatoires";
     }
 }
 ?>
@@ -382,7 +392,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <ul class="sidebar-menu">
             <li class="active">
                 <i class="fas fa-tachometer-alt"></i>
-                <a href="index.html" style="color: inherit; text-decoration: none;">
+                <a href="index.php" style="color: inherit; text-decoration: none;">
                     <span>Dashboard</span>
                 </a>
             </li>
@@ -417,8 +427,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <li></li>
             <li>
                 <i class="fas fa-exclamation-circle"></i>
-                <a href=".php" style="color: inherit; text-decoration: none;">
-                    <span>sponsoring</span>
+                <a href="sponsoring.php" style="color: inherit; text-decoration: none;"> <!-- Correction de l'URL -->
+                    <span>Sponsoring</span>
                 </a>
             </li>
             <li></li>
